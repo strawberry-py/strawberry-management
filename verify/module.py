@@ -56,7 +56,7 @@ def test_dotenv() -> None:
 test_dotenv()
 
 
-MAIL_HEADER_PREFIX = "X-pumpkin.py-"
+MAIL_HEADER_PREFIX = "X-strawberry.py-"
 
 
 class Verify(commands.Cog):
@@ -1411,7 +1411,7 @@ class Verify(commands.Cog):
         code: str,
     ) -> MIMEMultipart:
         """Generate the verification e-mail."""
-        BOT_URL = "https://github.com/pumpkin-py"
+        BOT_URL = "https://github.com/strawberry-py"
 
         utx = i18n.TranslationContext(member.guild.id, member.id)
 
