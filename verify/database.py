@@ -27,6 +27,102 @@ class VerifyStatus(enum.Enum):
     BANNED = -1
 
 
+class MappingExtension:
+    _extensions = {}
+
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def register_extension(name: str, ext: MappingExtension):
+        """Registers MappingExtension to be used during verification:
+
+        Args:
+            ext: `MappingExtension` subclass of MappingExtension with Map function overwritten
+
+        """
+        if not isinstance(ext, MappingExtension):
+            raise ValueError("Extension must be subclass of MappingExtension")
+        if name in MappingExtension._extensions:
+            raise ValueError("Extension name must be unique!")
+
+        MappingExtension._extensions[name] = ext
+
+    @staticmethod
+    def unregister_extension(name: str) -> bool:
+        """Unregisters MappingExtension to be used during verification:
+
+        :param ext `MappingExtension`: subclass of MappingExtension with Map function overwritten
+        :return: True if extists and was unregistered, False otherwise
+        """
+        if name in MappingExtension._extensions:
+            MappingExtension._extensions.pop(name)
+            return True
+        return False
+
+    @staticmethod
+    def get_name(ext: MappingExtension = None) -> Optional[str]:
+        """Get name of the extension based on the instance
+
+        :param ext: Instance of MappingExtension subclass
+        :return: Name of instnace if registered, False otherwise
+        """
+
+        extensions = MappingExtension._extensions.values()
+
+        if ext not in extensions:
+            return
+
+        names = MappingExtension._extensions.keys()
+
+        return names[extensions.index(ext)]
+
+    def map(
+        guild_id: int, username: str = None, domain: str = None, email: str = None
+    ) -> Optional[CustomMapping]:
+        """Maps the given username and domain to the CustomMapping object.
+
+        If None is returned, the verification will continue unaffected.
+        Else the verification will use CustomMapping.rule.
+        If CustomMapping.rule is None, the Verification is blocked.
+
+        :param guild_id: Discord ID of the guild.
+        :param username: Username to search for (empty string for guild / global rule).
+        :param domain: Domain to search for (empty string for global rule).
+        :param email: Can be used instead of username and domain.
+        :return: CustomMapping if custom mapping is applied, None otherwise
+
+        :raises NotImplementedError: subclass does not override this function or super() is called.
+        """
+        raise NotImplementedError(
+            "MappingExtension subclasses must override this function!"
+        )
+
+
+class CustomMapping:
+    """Custom verification mapping used in MappingExtension.map() function as return value.
+    If self.rule is None, then the mapping is not allowed and the user will be blocked.
+
+    The rule must be a rule existing in DB (VerifyRule instance).
+    """
+
+    def __init__(
+        self, guild_id: int, rule_id: int, username: str, domain: str, rule: VerifyRule
+    ):
+        """VerifyRule can be None. In that case, the verification is blocked.
+
+        :param guild_id: Discord ID of the guild.
+        :param username: Username used in mapping.
+        :param domain: Domain used in mapping.
+        :param rule: VerifyRule used to verify user (Verification blocked if None)
+        """
+        self.guild_id = guild_id
+        self.rule_id = rule_id
+        self.username = username
+        self.domain = domain
+        self.rule = rule
+
+
 class VerifyRule(database.base):
     """Verify rules for assigning roles to rules and sending correct
     message.
