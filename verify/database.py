@@ -78,7 +78,7 @@ class MappingExtension:
         return names[extensions.index(ext)]
 
     def map(
-        guild_id: int, username: str = None, domain: str = None, email: str = None
+        self, guild_id: int, username: str = None, domain: str = None, email: str = None
     ) -> Optional[CustomMapping]:
         """Maps the given username and domain to the CustomMapping object.
 
