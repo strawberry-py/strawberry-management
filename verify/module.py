@@ -1408,7 +1408,7 @@ class Verify(commands.Cog):
         extension: MappingExtension
         for name, extension in MappingExtension._extensions.items():
             try:
-                mapping: CustomMapping = extension.map(
+                mapping: CustomMapping = await extension.map(
                     guild_id=guild_id, username=username, domain=domain, email=email
                 )
             except Exception as exc:
