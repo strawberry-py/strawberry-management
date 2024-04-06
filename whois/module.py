@@ -121,10 +121,10 @@ class Whois(commands.Cog):
         dc_member: Optional[discord.Member] = None
         user_id: Optional[int] = None
 
-        if type(member) == discord.Member:
+        if type(member) is discord.Member:
             user_id = member.id
             dc_member = member
-        elif type(member) == int:
+        elif type(member) is int:
             user_id = member
 
         db_members: List[VerifyMember]
