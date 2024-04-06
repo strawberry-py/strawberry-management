@@ -43,13 +43,13 @@ SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
 
 
 def test_dotenv() -> None:
-    if type(SMTP_SERVER) != str:
+    if type(SMTP_SERVER) is not str:
         raise exceptions.DotEnvException("SMTP_SERVER is not set.")
-    if type(SMTP_ADDRESS) != str:
+    if type(SMTP_ADDRESS) is not str:
         raise exceptions.DotEnvException("SMTP_ADDRESS is not set.")
-    if type(SMTP_PASSWORD) != str:
+    if type(SMTP_PASSWORD) is not str:
         raise exceptions.DotEnvException("SMTP_PASSWORD is not set.")
-    if type(IMAP_SERVER) != str:
+    if type(IMAP_SERVER) is not str:
         raise exceptions.DotEnvException("IMAP_SERVER is not set.")
 
 
