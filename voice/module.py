@@ -43,7 +43,8 @@ NOUNS = [
 
 class Voice(commands.Cog):
     """Module for dynamic VoiceChannel management.
-    Requires a VoiceChannel category, in which the category permissions are set correctly!"""
+    Requires a VoiceChannel category, in which the category permissions are set correctly!
+    """
 
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -155,11 +156,13 @@ class Voice(commands.Cog):
         # Includes channels with no visitors yet
         empty_channels = list(
             filter(
-                lambda x: True
-                if isinstance(x, discord.VoiceChannel)
-                and (not x.members)
-                and (high_resolution == x.name.startswith(HIGH_RES_CHANNEL_PREFIX))
-                else False,
+                lambda x: (
+                    True
+                    if isinstance(x, discord.VoiceChannel)
+                    and (not x.members)
+                    and (high_resolution == x.name.startswith(HIGH_RES_CHANNEL_PREFIX))
+                    else False
+                ),
                 category.channels,
             )
         )
