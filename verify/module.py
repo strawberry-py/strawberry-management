@@ -91,13 +91,6 @@ class Verify(commands.Cog):
             return
 
         code: str = self._generate_code()
-        VerifyMember.add(
-            guild_id=ctx.guild.id,
-            user_id=ctx.author.id,
-            address=address,
-            code=code,
-            status=VerifyStatus.PENDING,
-        )
 
         message: MIMEMultipart = self._get_message(
             ctx.author, ctx.channel, address, code
@@ -107,6 +100,14 @@ class Verify(commands.Cog):
 
         if not email_sent:
             return
+
+        VerifyMember.add(
+            guild_id=ctx.guild.id,
+            user_id=ctx.author.id,
+            address=address,
+            code=code,
+            status=VerifyStatus.PENDING,
+        )
 
         await guild_log.info(
             ctx.author,
