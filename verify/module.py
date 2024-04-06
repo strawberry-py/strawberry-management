@@ -1454,7 +1454,7 @@ class Verify(commands.Cog):
         return message
 
     async def _send_email(
-        self, ctx, message: MIMEMultipart, retry: bool = True
+        self, ctx: commands.Context, message: MIMEMultipart, retry: bool = True
     ) -> None:
         """Send the verification e-mail."""
         try:
@@ -1463,8 +1463,8 @@ class Verify(commands.Cog):
                 server.login(SMTP_ADDRESS, SMTP_PASSWORD)
                 server.send_message(message)
                 return True
-        except smtplib.SMTPException as exc:
-            if retry:
+        except (smtplib.SMTPException, smtplib.SMTPNotSupportedError) as exc:
+            if retry and not isinstance(exc, smtplib.SMTPNotSupportedError):
                 await bot_log.warning(
                     ctx.author,
                     ctx.channel,
@@ -1477,6 +1477,9 @@ class Verify(commands.Cog):
                     ctx.author,
                     ctx.channel,
                     "Could not send verification e-mail.",
+                    "Email: {}".format(
+                        message["To"].encode("unicode-escape").decode("utf-8")
+                    ),
                     exception=exc,
                 )
                 await ctx.send(
