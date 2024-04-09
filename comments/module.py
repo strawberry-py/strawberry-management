@@ -9,7 +9,6 @@ from pie import check, i18n, logger, utils
 
 from .database import Comment
 
-
 _ = i18n.Translator("modules/mgmt").translate
 guild_log = logger.Guild.logger()
 

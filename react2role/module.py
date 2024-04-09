@@ -1,10 +1,10 @@
-from typing import List
 import shlex
-from emoji import EMOJI_DATA
 from io import BytesIO
+from typing import List
 
 import discord
 from discord.ext import commands
+from emoji import EMOJI_DATA
 
 from pie import check, i18n, logger, utils
 

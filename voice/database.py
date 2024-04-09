@@ -3,8 +3,9 @@ from __future__ import annotations
 from typing import Iterable, Optional, Union
 
 import discord
+from sqlalchemy import BigInteger, Boolean, Column, Integer
+
 from pie.database import database, session
-from sqlalchemy import BigInteger, Boolean, Integer, Column
 
 
 class VoiceSettings(database.base):

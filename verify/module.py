@@ -6,15 +6,13 @@ import random
 import smtplib
 import string
 import tempfile
-import unidecode
-from typing import List, Union, Optional
-
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-
-import imap_tools
+from email.mime.text import MIMEText
+from typing import List, Optional, Union
 
 import discord
+import imap_tools
+import unidecode
 from discord.ext import commands
 
 import pie.database.config
@@ -28,7 +26,6 @@ from .database import (
     VerifyRule,
     VerifyStatus,
 )
-
 
 _ = i18n.Translator("modules/mgmt").translate
 bot_log = logger.Bot.logger()

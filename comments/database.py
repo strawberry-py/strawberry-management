@@ -1,9 +1,9 @@
 from __future__ import annotations
+
 from datetime import datetime
+from typing import Dict, List, Optional
 
-from typing import List, Optional, Dict
-
-from sqlalchemy import BigInteger, Column, Integer, String, DateTime
+from sqlalchemy import BigInteger, Column, DateTime, Integer, String
 
 from pie.database import database, session
 

@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Tuple
 
-from PIL import Image, ImageFont, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 
 
 def get_digit_emoji(number: int) -> str:
