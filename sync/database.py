@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from sqlalchemy import BigInteger, Column, Integer, JSON
+from sqlalchemy import JSON, BigInteger, Column, Integer
 
 from pie.database import database, session
 

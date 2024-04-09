@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Dict, Optional, List
+from typing import Dict, List, Optional
 
 import discord
 from discord.ext import commands

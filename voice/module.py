@@ -8,9 +8,9 @@ from discord.ext import commands, tasks
 from discord.ext.commands.bot import Bot
 
 import pie.database.config
-from pie import i18n, logger, check, utils
+from pie import check, i18n, logger, utils
 
-from .database import VoiceSettings, LockedChannels
+from .database import LockedChannels, VoiceSettings
 
 _ = i18n.Translator("modules/mgmt").translate
 bot_log = logger.Bot.logger()

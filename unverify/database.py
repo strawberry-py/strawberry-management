@@ -5,8 +5,9 @@ from datetime import datetime
 from typing import Dict, List, Optional
 
 import discord
-from pie.database import database, session
 from sqlalchemy import BigInteger, Column, DateTime, Enum, Integer, String, or_
+
+from pie.database import database, session
 
 
 class UnverifyStatus(enum.Enum):

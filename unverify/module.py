@@ -7,12 +7,13 @@ from typing import List, Optional, Tuple
 
 import dateutil.parser
 import discord
-import pie.database.config
 from discord import Guild, Member
 from discord.errors import NotFound
 from discord.ext import commands, tasks
 from discord.ext.commands.bot import Bot
-from pie import check, i18n, logger, utils, acl
+
+import pie.database.config
+from pie import acl, check, i18n, logger, utils
 
 from .database import UnverifyGuildConfig, UnverifyItem, UnverifyStatus, UnverifyType
 

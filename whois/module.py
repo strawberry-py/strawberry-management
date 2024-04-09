@@ -15,7 +15,6 @@ except Exception:
     ACLevelMappping = None
 from ..verify.database import VerifyMember
 
-
 _ = i18n.Translator("modules/mgmt").translate
 guild_log = logger.Guild.logger()
 
