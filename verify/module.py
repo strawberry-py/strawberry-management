@@ -19,6 +19,8 @@ import pie.database.config
 from pie import check, exceptions, i18n, logger, utils
 
 from .database import (
+    CustomMapping,
+    MappingExtension,
     VerifyMapping,
     VerifyMember,
     VerifyMessage,
@@ -243,7 +245,9 @@ class Verify(commands.Cog):
             )
             return
 
-        mapping = VerifyMapping.map(guild_id=ctx.guild.id, email=db_member.address)
+        mapping = await self._map(
+            ctx=ctx, guild_id=ctx.guild.id, email=db_member.address
+        )
 
         if not mapping or not mapping.rule or not mapping.rule.roles:
             await ctx.send(
@@ -667,8 +671,8 @@ class Verify(commands.Cog):
         """
         await utils.discord.delete_message(ctx.message)
 
-        mapping = VerifyMapping.map(
-            guild_id=ctx.guild.id, username=username, domain=domain
+        mapping = await self._map(
+            ctx=ctx, guild_id=ctx.guild.id, username=username, domain=domain
         )
 
         if not username and not domain:
@@ -681,6 +685,12 @@ class Verify(commands.Cog):
             mapping_name = mapping.username + "@" + mapping.domain
 
         embed = utils.discord.create_embed(author=ctx.author, title=title)
+
+        if isinstance(mapping, CustomMapping):
+            embed.add_field(
+                name=_(ctx, "Mapping extension:"),
+                value=MappingExtension.get_name(mapping),
+            )
 
         embed.add_field(name=_(ctx, "Applied mapping:"), value=mapping_name)
 
@@ -1092,8 +1102,8 @@ class Verify(commands.Cog):
                 role for role in managed_roles if role in dc_member_roles
             ]
 
-            mapping = VerifyMapping.map(
-                guild_id=ctx.guild.id, email=verify_member.address
+            mapping = await self._map(
+                ctx=ctx, guild_id=ctx.guild.id, email=verify_member.address
             )
 
             # Mapping or rule not found = strip
@@ -1225,7 +1235,7 @@ class Verify(commands.Cog):
         if db_member.status != VerifyStatus.VERIFIED.value:
             return
 
-        mapping = VerifyMapping.map(guild_id=member.guild.id, email=db_member.address)
+        mapping = await self._map(guild_id=member.guild.id, email=db_member.address)
 
         if not mapping or not mapping.rule or not mapping.rule.roles:
             await guild_log.error(
@@ -1367,7 +1377,7 @@ class Verify(commands.Cog):
         :param address: Supplied e-mail address
         """
         try:
-            mapping = VerifyMapping.map(guild_id=ctx.guild.id, email=address)
+            mapping = await self._map(ctx=ctx, guild_id=ctx.guild.id, email=address)
         except ValueError:
             mapping = None
 
@@ -1386,6 +1396,40 @@ class Verify(commands.Cog):
             return False
 
         return True
+
+    async def _map(
+        self,
+        guild_id: int,
+        ctx: commands.Context = None,
+        username: str = None,
+        domain: str = None,
+        email: str = None,
+    ) -> Union[CustomMapping, VerifyMapping]:
+        extension: MappingExtension
+        for name, extension in MappingExtension._extensions.items():
+            try:
+                mapping: CustomMapping = await extension.map(
+                    guild_id=guild_id, username=username, domain=domain, email=email
+                )
+            except Exception as exc:
+                await bot_log.error(
+                    ctx.author if ctx else None,
+                    ctx.channel if ctx else None,
+                    f"Error during '{name}' MappingExtension processing.",
+                    exception=exc,
+                )
+            if mapping:
+                if not isinstance(mapping, CustomMapping):
+                    await bot_log.error(
+                        ctx.author if ctx else None,
+                        ctx.channel if ctx else None,
+                        f"MappingExtension '{name}' map function returned {mapping.__class__}.",
+                    )
+                return mapping
+
+        return VerifyMapping.map(
+            guild_id=guild_id, username=username, domain=domain, email=email
+        )
 
     def _generate_code(self):
         """Generate verification code."""
