@@ -2,9 +2,10 @@ import shlex
 from io import BytesIO
 from typing import List
 
+from emoji import EMOJI_DATA
+
 import discord
 from discord.ext import commands
-from emoji import EMOJI_DATA
 
 from pie import check, i18n, logger, utils
 
