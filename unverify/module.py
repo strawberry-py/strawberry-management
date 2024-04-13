@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
 import dateutil.parser
+
 import discord
 from discord import Guild, Member
 from discord.errors import NotFound

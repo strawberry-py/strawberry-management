@@ -10,9 +10,10 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional, Union
 
-import discord
 import imap_tools
 import unidecode
+
+import discord
 from discord.ext import commands
 
 import pie.database.config
