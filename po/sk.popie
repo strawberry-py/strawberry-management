@@ -109,6 +109,36 @@ msgstr Táto skupina má maximum **{limit} rolí**. Nejskôr niektoré role odob
 msgid You cannot remove your top role.
 msgstr Nemôžeš si odstrániť svoju najvyššiu rolu.
 
+msgid Incorrect message URL!
+msgstr Nesprávná adresa URL správy!
+
+msgid Message not found or not reachable!
+msgstr Správa sa nenašla alebo je nedostupná!
+
+msgid Send message
+msgstr Odoslať správu
+
+msgid Message content:
+msgstr Obsah správy:
+
+msgid Message is not sent by this bot and can't be edited!
+msgstr Správa nie je odoslaná týmto botom a nie je možné ju upraviť!
+
+msgid Message content longer than 2000 characters!
+msgstr Obsah správy dlhší ako 2000 znakov!
+
+msgid Edit message
+msgstr Upraviť správu
+
+msgid Message exported to TXT.
+msgstr Správa exportovaná do TXT.
+
+msgid Message edited in {channel}!
+msgstr Správa v kanále {channel} upravená!
+
+msgid Message sent to {channel}!
+msgstr Správa odoslána do kanálu {channel}!
+
 msgid {mention} This server is not a satellite.
 msgstr {mention} Tento server nie je satelit.
 

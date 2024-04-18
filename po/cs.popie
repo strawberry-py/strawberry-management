@@ -50,7 +50,7 @@ msgid Channel
 msgstr Kanál
 
 msgid Type
-msgstr Druh
+msgstr Typ
 
 msgid Role limit
 msgstr Limit rolí
@@ -108,6 +108,36 @@ msgstr Tato skupina má maximum **{limit} rolí**. Nejprve některé role odeber
 
 msgid You cannot remove your top role.
 msgstr Nemůžeš si odebrat svou nejvyšší roli.
+
+msgid Incorrect message URL!
+msgstr Špatná URL zprávy!
+
+msgid Message not found or not reachable!
+msgstr Zpráva nenalezena nebo není dostupná!
+
+msgid Send message
+msgstr Odeslat zprávu
+
+msgid Message content:
+msgstr Obsah zprávy:
+
+msgid Message is not sent by this bot and can't be edited!
+msgstr Zpráva nebyla odeslána tímto botem a nelze ji upravit!
+
+msgid Message content longer than 2000 characters!
+msgstr Obsah zprávy je delší jak 2000 znaků!
+
+msgid Edit message
+msgstr Upravit zprávu
+
+msgid Message exported to TXT.
+msgstr Zpráva exportována do TXT.
+
+msgid Message edited in {channel}!
+msgstr Zpráva upravena v kanálu {channel}!
+
+msgid Message sent to {channel}!
+msgstr Zpráva odeslána do kanálu {channel}!
 
 msgid {mention} This server is not a satellite.
 msgstr {mention} Tento server není satelit.
