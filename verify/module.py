@@ -17,7 +17,7 @@ import discord
 from discord.ext import commands
 
 import pie.database.config
-from pie import check, exceptions, i18n, logger, utils
+from pie import check, exceptions, i18n, logger, storage, utils
 
 from .database import (
     CustomMapping,
@@ -358,9 +358,25 @@ class Verify(commands.Cog):
         await utils.discord.send_help(ctx)
 
     @check.acl2(check.ACLevel.MOD)
+    @verification.command(name="anonymize")
+    async def verification_anonymize(self, ctx: commands.Context, anonymize: bool):
+        """When anonymize is True, bot log won't contain email addresses."""
+        storage.set(
+            module=self, guild_id=ctx.guild.id, key="anonymize", value=anonymize
+        )
+        if anonymize:
+            await ctx.reply(
+                _(ctx, "Anonymization is **ON**. Emails won't appear in logs.")
+            )
+        else:
+            await ctx.reply(
+                _(ctx, "Anonymization is **OFF**. Emails will appear in logs.")
+            )
+
+    @check.acl2(check.ACLevel.MOD)
     @verification.command(name="statistics", aliases=["stats"])
     async def verification_statistics(self, ctx):
-        """Filter the data by verify status."""
+        """Filter the data by verify status. (TODO)"""
         # TODO
         pass
 
@@ -1302,14 +1318,16 @@ class Verify(commands.Cog):
         :param ctx: Command context
         :param address: Supplied e-mail address
         """
-        if VerifyMember.get(guild_id=ctx.guild.id, user_id=ctx.author.id):
+        db_member: VerifyMember = VerifyMember.get(
+            guild_id=ctx.guild.id, user_id=ctx.author.id
+        )
+        if db_member:
             await guild_log.debug(
                 ctx.author,
                 ctx.channel,
                 (
-                    "Attempted to verify with ID already in database: "
-                    f"'{utils.text.sanitise(address, tag_escape=False)}'."
-                ),
+                    "Attempted to verify with Discord account already in database (status: {status})."
+                ).format(status=VerifyStatus(db_member[0].status).name),
             )
             await ctx.send(
                 _(
@@ -1348,7 +1366,7 @@ class Verify(commands.Cog):
                 ctx.channel,
                 (
                     "Attempted to verify with address associated with different user: "
-                    f"'{address}' is registered to account {dc_member_str} "
+                    f"The address is registered to account {dc_member_str} "
                     f"with status '{VerifyStatus(db_member.status).name}'."
                 ),
             )
@@ -1383,10 +1401,15 @@ class Verify(commands.Cog):
             mapping = None
 
         if not mapping or not mapping.rule:
+            anonymize: bool = storage.get(
+                module=self, guild_id=ctx.guild.id, key="anonymize", default_value=True
+            )
             await guild_log.info(
                 ctx.author,
                 ctx.channel,
-                f"Attempted to verify with unsupported address '{address}'.",
+                "Attempted to verify with unsupported address {address}.".format(
+                    address=address if not anonymize else "(anonymized)"
+                ),
             )
             await ctx.send(
                 _(ctx, "{mention} This e-mail cannot be used.").format(

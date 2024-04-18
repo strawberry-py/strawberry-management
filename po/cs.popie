@@ -340,6 +340,12 @@ msgstr Akce nebyla dokončena.
 msgid You've been deleted from the database and your roles have been removed. You have to go through verfication in order to get back.
 msgstr Byli jste vymazáni z databáze a byly vám odebrány role. Pro návrat musíte znovu projít verifikací.
 
+msgid Anonymization is **ON**. Emails won't appear in logs.
+msgstr Anonymizace je **ZAPNUTA**. Emailové adresy se neobjeví v logu.
+
+msgid Anonymization is **OFF**. Emails will appear in logs.
+msgstr Anonymizace je **VYPNUTA**. Emailové adresy se objeví v logu.
+
 msgid Group strip
 msgstr Hromadný reset rolí
 
