@@ -14,10 +14,13 @@ import imap_tools
 import unidecode
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 import pie.database.config
 from pie import check, exceptions, i18n, logger, storage, utils
+from pie.bot import Strawberry
+from pie.utils.objects import ConfirmView
 
 from .database import (
     CustomMapping,
@@ -60,75 +63,91 @@ MAIL_HEADER_PREFIX = "X-strawberry.py-"
 
 
 class Verify(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+    verification: app_commands.Group = app_commands.Group(
+        name="verification",
+        description="Verification administration and management.",
+        default_permissions=discord.Permissions(administrator=True),
+    )
 
-    @commands.guild_only()
+    verification_welcome: app_commands.Group = app_commands.Group(
+        name="welcome",
+        description="Verification welcome message configuration.",
+        parent=verification,
+    )
+
+    verification_mapping: app_commands.Group = app_commands.Group(
+        name="mapping",
+        description="Verification mapping configuration.",
+        parent=verification,
+    )
+
+    verification_rule: app_commands.Group = app_commands.Group(
+        name="rule", description="Verification rule configuration.", parent=verification
+    )
+
+    verification_reverify: app_commands.Group = app_commands.Group(
+        name="reverify", description="Reverification commands.", parent=verification
+    )
+
+    def __init__(self, bot):
+        self.bot: Strawberry = bot
+
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
-    @commands.command()
-    async def verify(self, ctx, address: Optional[str] = None):
-        """Ask for a verification code."""
-        await utils.discord.delete_message(ctx.message)
+    @app_commands.command(
+        name="verify", description="Send verification code to the email."
+    )
+    async def verify(self, itx: discord.Interaction, address: str):
         if not address:
-            await ctx.send(
-                _(ctx, "{mention} You have to include your e-mail.").format(
-                    mention=ctx.author.mention
-                ),
-                delete_after=120,
-            )
             return
 
+        await itx.response.defer(thinking=True, ephemeral=True)
+
         # Check if user is in database
-        if await self._member_exists(ctx, address):
+        if await self._member_exists(itx, address):
             return
 
         # Check if address is in use
-        if await self._address_exists(ctx, address):
+        if await self._address_exists(itx, address):
             return
 
         # Check if address is supported
-        if not await self._is_supported_address(ctx, address):
+        if not await self._is_supported_address(itx, address):
             return
 
         code: str = self._generate_code()
 
-        message: MIMEMultipart = self._get_message(
-            ctx.author, ctx.channel, address, code
-        )
+        message: MIMEMultipart = self._get_message(itx.user, itx.channel, address, code)
 
-        email_sent = await self._send_email(ctx, message)
+        email_sent = await self._send_email(itx, message)
 
         if not email_sent:
             return
 
         VerifyMember.add(
-            guild_id=ctx.guild.id,
-            user_id=ctx.author.id,
+            guild_id=itx.guild.id,
+            user_id=itx.user.id,
             address=address,
             code=code,
             status=VerifyStatus.PENDING,
         )
 
         await guild_log.info(
-            ctx.author,
-            ctx.channel,
+            itx.user,
+            itx.channel,
             "Verification e-mail sent.",
         )
 
-        await ctx.send(
-            _(
-                ctx,
-                (
-                    "{mention} I've sent you the verification code "
-                    "to the submitted e-mail."
-                ),
-            ).format(mention=ctx.author.mention),
-            delete_after=120,
+        await (await itx.original_response()).edit(
+            content=_(
+                itx,
+                ("I've sent you the verification code " "to the submitted e-mail."),
+            )
         )
 
-        await self.post_verify(ctx, address)
+        await self.post_verify(itx, address)
 
-    async def post_verify(self, ctx, address: str):
+    async def post_verify(self, itx: discord.Interaction, address: str):
         """Wait some time after the user requested verification code.
 
         Then connect to IMAP server and check for possilibity that they used
@@ -151,60 +170,52 @@ class Verify(commands.Cog):
             )
 
             error_private: str = _(
-                ctx,
+                itx,
                 (
                     "I could not send the verification code, you've probably made "
-                    "a typo: `{address}`. Invoke the command `{prefix}strip` "
+                    "a typo: `{address}`. Invoke the command `/strip` "
                     "before requesting a new code."
                 ),
-            ).format(address=address, prefix=config.prefix)
-            error_public: str = _(
-                ctx,
-                (
-                    "I could not send the verification code, you've probably made "
-                    "a typo. Invoke the command `{prefix}strip` "
-                    "before requesting a new code."
-                ),
-            ).format(address=address, prefix=config.prefix)
+            ).format(address=address)
             error_epilog: str = _(
-                ctx,
+                itx,
                 (
                     "If I'm wrong and the e-mail is correct, "
                     "contact the moderator team."
                 ),
             )
-
             if not await utils.discord.send_dm(
-                ctx.author,
+                itx.user,
                 error_private + "\n" + error_epilog,
             ):
-                await ctx.send(
+                error_public: str = (
+                    _(
+                        itx,
+                        (
+                            "{mention} I could not send the verification code, you've probably made "
+                            "a typo. Invoke the command `/strip` "
+                            "before requesting a new code."
+                        ),
+                    ).format(mention=itx.user.mention),
+                )
+                await itx.channel.send(
                     error_public + "\n" + error_epilog,
-                    delete_after=120,
+                    delete_after=60,
                 )
 
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
-    @commands.command()
-    async def submit(self, ctx, code: Optional[str] = None):
-        """Submit verification code."""
-        await utils.discord.delete_message(ctx.message)
+    @app_commands.command(
+        name="submit", description="Submit verification code received by email."
+    )
+    async def submit(self, itx: discord.Interaction, code: str):
         if not code:
-            await ctx.send(
-                _(ctx, "{mention} You have to include your verification code.").format(
-                    mention=ctx.author.mention
-                ),
-                delete_after=120,
-            )
             return
 
-        db_members = VerifyMember.get(guild_id=ctx.guild.id, user_id=ctx.author.id)
+        db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=itx.user.id)
         if not db_members or db_members[0].code is None:
-            await ctx.send(
-                _(ctx, "{mention} You have to request the code first.").format(
-                    mention=ctx.author.mention
-                ),
-                delete_after=120,
+            await itx.response.send_message(
+                _(itx, "You have to request the code first."), ephemeral=True
             )
             return
 
@@ -212,106 +223,106 @@ class Verify(commands.Cog):
 
         if db_member.status != VerifyStatus.PENDING:
             await guild_log.info(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 (
                     "Attempted to submit the code with bad status: "
                     f"`{VerifyStatus(db_member.status).name}`."
                 ),
             )
-            await ctx.send(
+            await itx.response.send_message(
                 _(
-                    ctx,
+                    itx,
                     (
-                        "{mention} You are not in code verification phase. "
+                        "You are not in code verification phase. "
                         "Contact the moderator team."
                     ),
-                ).format(mention=ctx.author.mention),
-                delete_after=120,
+                ),
+                ephemeral=True,
             )
             return
 
         fixed_code: str = self._repair_code(code)
         if db_member.code != fixed_code:
             await guild_log.info(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 f"Attempted to submit bad code: `{utils.text.sanitise(code)}`.",
             )
-            await ctx.send(
-                _(ctx, "{mention} That is not your verification code.").format(
-                    mention=ctx.author.mention
-                ),
-                delete_after=120,
+            await itx.response.send_message(
+                _(itx, "That is not your verification code."), ephemeral=True
             )
             return
 
+        await itx.response.defer(thinking=True, ephemeral=True)
+
         mapping = await self._map(
-            ctx=ctx, guild_id=ctx.guild.id, email=db_member.address
+            itx=itx, guild_id=itx.guild.id, email=db_member.address
         )
 
         if not mapping or not mapping.rule or not mapping.rule.roles:
-            await ctx.send(
-                _(ctx, "Could not assign roles. Please contact moderator team.")
+            await (await itx.original_response()).edit(
+                content=_(itx, "Could not assign roles. Please contact moderator team.")
             )
             await guild_log.error(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 "Member could not be verified due to missing mapping, rule or roles. Rule name: {name}".format(
                     name=mapping.rule.name if mapping.rule else "(None)"
                 ),
             )
             return
 
-        await self._add_roles(ctx.author, mapping.rule.roles)
+        await self._add_roles(itx.user, mapping.rule.roles)
 
         config_message = mapping.rule.message
 
         db_member.status = VerifyStatus.VERIFIED
         db_member.save()
 
-        await guild_log.info(ctx.author, ctx.channel, "Verification successfull.")
+        await guild_log.info(itx.user, itx.channel, "Verification successfull.")
 
         if not config_message:
-            config_message = VerifyMessage.get_default(ctx.guild.id)
+            config_message = VerifyMessage.get_default(itx.guild.id)
         if not config_message:
             await utils.discord.send_dm(
-                ctx.author,
-                _(ctx, "You have been verified, congratulations!"),
+                itx.author,
+                _(itx, "You have been verified, congratulations!"),
             )
         else:
-            await utils.discord.send_dm(ctx.author, config_message.message)
+            await utils.discord.send_dm(itx.user, config_message.message)
 
-        await ctx.send(
-            _(ctx, "Member **{name}** has been verified.").format(
-                name=utils.text.sanitise(ctx.author.name),
-            ),
-            delete_after=120,
-        )
+        with contextlib.suppress(Exception):
+            (await itx.original_response()).delete()
 
-    @commands.guild_only()
-    @check.acl2(check.ACLevel.MEMBER)
-    @commands.command(name="strip")
-    async def strip(self, ctx):
-        """Remove all roles and reset verification status to None."""
-        db_members = VerifyMember.get(guild_id=ctx.guild.id, user_id=ctx.author.id)
+    @app_commands.guild_only()
+    @check.acl2(check.ACLevel.EVERYONE)
+    @app_commands.command(
+        name="strip",
+        description="Remove all roles and reset verification status to None.",
+    )
+    async def strip(self, itx: discord.Interaction):
+        db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=itx.user.id)
 
         db_member = db_members[0] if db_members else None
 
         if db_member and db_member.status.value < VerifyStatus.NONE.value:
             await guild_log.info(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 f"Strip attempt blocked, has status {VerifyStatus(db_member.status)}.",
             )
-            await ctx.reply(_(ctx, "Something went wrong, contact the moderator team."))
+            await itx.response.send_message(
+                _(itx, "Something went wrong, contact the moderator team."),
+                ephemeral=True,
+            )
             return
 
         dialog = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Strip"),
+            author=itx.user,
+            title=_(itx, "Strip"),
             description=_(
-                ctx,
+                itx,
                 (
                     "By clicking the confirm button you will have all your roles removed "
                     "and your verification will be revoked. "
@@ -319,29 +330,31 @@ class Verify(commands.Cog):
                 ),
             ),
         )
-        view = utils.objects.ConfirmView(ctx, dialog)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
-            await ctx.reply(_(ctx, "Stripping aborted."))
+            await (await itx.original_response()).edit(
+                content=_(itx, "Stripping aborted."), embed=None
+            )
             return
 
-        roles = [role for role in ctx.author.roles if role.is_assignable()]
+        roles = [role for role in itx.user.roles if role.is_assignable()]
 
         with contextlib.suppress(discord.Forbidden):
-            await ctx.author.remove_roles(*roles, reason="strip")
+            await itx.user.remove_roles(*roles, reason="strip")
 
         message: str = "Stripped"
         if db_member:
             db_member.delete()
             message += " and removed from database"
         message += "."
-        await guild_log.info(ctx.author, ctx.channel, message)
+        await guild_log.info(itx.user, itx.channel, message)
 
         await utils.discord.send_dm(
-            ctx.author,
+            itx.user,
             _(
-                ctx,
+                itx,
                 (
                     "You've been deleted from the database "
                     "and your roles have been removed. "
@@ -349,128 +362,100 @@ class Verify(commands.Cog):
                 ),
             ),
         )
-        await utils.discord.delete_message(ctx.message)
-
-    @commands.guild_only()
-    @check.acl2(check.ACLevel.MOD)
-    @commands.group(name="verification")
-    async def verification(self, ctx):
-        await utils.discord.send_help(ctx)
 
     @check.acl2(check.ACLevel.MOD)
-    @verification.command(name="anonymize")
-    async def verification_anonymize(self, ctx: commands.Context, anonymize: bool):
-        """When anonymize is True, bot log won't contain email addresses."""
+    @verification.command(
+        name="anonymize",
+        description="When anonymize is True, bot log won't contain email addresses.",
+    )
+    async def verification_anonymize(self, itx: discord.Interaction, anonymize: bool):
         storage.set(
-            module=self, guild_id=ctx.guild.id, key="anonymize", value=anonymize
+            module=self, guild_id=itx.guild.id, key="anonymize", value=anonymize
         )
         if anonymize:
-            await ctx.reply(
-                _(ctx, "Anonymization is **ON**. Emails won't appear in logs.")
+            await itx.response.send_message(
+                _(itx, "Anonymization is **ON**. Emails won't appear in logs.")
             )
         else:
-            await ctx.reply(
-                _(ctx, "Anonymization is **OFF**. Emails will appear in logs.")
+            await itx.response.send_message(
+                _(itx, "Anonymization is **OFF**. Emails will appear in logs.")
             )
 
-    @check.acl2(check.ACLevel.MOD)
-    @verification.command(name="statistics", aliases=["stats"])
-    async def verification_statistics(self, ctx):
-        """Filter the data by verify status. (TODO)"""
-        # TODO
-        pass
-
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.SUBMOD)
-    @verification.command(name="groupstrip")
-    async def verification_groupstrip(self, ctx, *members: Union[discord.Member, int]):
-        """Remove all roles and reset verification status to None
-        from multiple users. Users are not notified about this."""
-        removed_db: int = 0
-        removed_dc: int = 0
-
+    @verification.command(
+        name="groupstrip",
+        description="Remove roles from the users and set's verify status to None. User is not notified about this.",
+    )
+    async def verification_groupstrip(
+        self, itx: discord.Interaction, member: discord.Member
+    ):
         dialog = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Group strip"),
+            author=itx.user,
+            title=_(itx, "Group strip"),
             description=_(
-                ctx,
+                itx,
                 (
-                    "**{count}** mentioned users will lose all their roles and their "
+                    "**{member}** will lose all their roles and their "
                     "verification will be revoked. They will not be notified about this. "
                     "Do you want to continue?"
                 ),
-            ).format(count=len(members)),
+            ).format(member=member.name),
         )
-        view = utils.objects.ConfirmView(ctx, dialog)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
-            await ctx.reply(_(ctx, "Stripping aborted."))
+            try:
+                await (await itx.original_response()).edit(_(itx, "Stripping aborted."))
+            except Exception:
+                pass
             return
 
-        async with ctx.typing():
-            for member in members:
-                if isinstance(member, int):
-                    member_id = member
-                    member = ctx.guild.get_member(member_id)
-                else:
-                    member_id = member.id
+        itx: discord.Interaction = view.itx
 
-                db_members = VerifyMember.get(guild_id=ctx.guild.id, user_id=member_id)
-                if db_members:
-                    db_member = db_members[0]
-                    db_member.delete()
-                    removed_db += 1
-                if len(getattr(member, "roles", [])) > 1:
-                    roles = [role for role in member.roles if role.is_assignable()]
-                    with contextlib.suppress(discord.Forbidden):
-                        await member.remove_roles(*roles, reason="groupstrip")
-                    removed_dc += 1
-                elif member is not None:
-                    await ctx.send(
-                        _(
-                            ctx,
-                            "Member **{member_id}** (<@{member_id}>) has no roles.",
-                        ).format(member_id=member_id)
-                    )
-                else:
-                    await ctx.send(
-                        _(
-                            ctx,
-                            "Member **{member_id}** (<@{member_id}>) not found.",
-                        ).format(member_id=member_id)
-                    )
+        await itx.response.defer(thinking=True, ephemeral=True)
 
-        await ctx.reply(
-            _(
-                ctx,
-                (
-                    "**{db}** database entries have been removed, "
-                    "**{dc}** users have been stripped."
-                ),
-            ).format(db=removed_db, dc=removed_dc)
+        db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=member.id)
+        if db_members:
+            db_member = db_members[0]
+            db_member.delete()
+
+        if len(getattr(member, "roles", [])) > 1:
+            roles = [role for role in member.roles if role.is_assignable()]
+            with contextlib.suppress(discord.Forbidden):
+                await member.remove_roles(*roles, reason="groupstrip")
+
+        await (await itx.original_response()).edit(
+            content=_(
+                itx,
+                "Member **{member}** ({member_id}) stripped.",
+            ).format(member=member.name, member_id=member.id)
         )
         await guild_log.warning(
-            ctx.author,
-            ctx.channel,
-            f"Removed {removed_db} users from database and "
-            f"stripped {removed_dc} members with groupstrip.",
+            itx.user,
+            itx.channel,
+            "User {member} ({member_id}) removed from database and group stripped.".format(
+                member=member.name, member_id=member.id
+            ),
         )
 
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification.command(name="grouprolestrip")
-    async def verification_grouprolestrip(self, ctx, role: discord.Role):
+    async def verification_grouprolestrip(
+        self, itx: discord.Interaction, role: discord.Role
+    ):
         """Remove all roles and reset verification status to None
         from all the users that have given role. Users are not notified
         about this.
         """
 
         dialog = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Role based strip"),
+            author=itx.user,
+            title=_(itx, "Role based strip"),
             description=_(
-                ctx,
+                itx,
                 (
                     "**{count}** members with role **{role}** will lose all their roles "
                     "and their verification will be revoked. They will not be notified "
@@ -478,32 +463,38 @@ class Verify(commands.Cog):
                 ),
             ).format(role=role.name, count=len(role.members)),
         )
-        view = utils.objects.ConfirmView(ctx, dialog)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
-            await ctx.reply(_(ctx, "Stripping aborted."))
+            try:
+                await (await itx.original_response()).edit(_(itx, "Stripping aborted."))
+            except Exception:
+                pass
             return
 
         removed_db: int = 0
         removed_dc: int = 0
 
-        async with ctx.typing():
-            for member in role.members:
-                db_members = VerifyMember.get(guild_id=ctx.guild.id, user_id=member.id)
-                if db_members:
-                    db_member = db_members[0]
-                    db_member.delete()
-                    removed_db += 1
-                if len(getattr(member, "roles", [])) > 1:
-                    roles = [r for r in member.roles if r.is_assignable()]
-                    with contextlib.suppress(discord.Forbidden):
-                        await member.remove_roles(*roles, reason="grouprolestrip")
-                    removed_dc += 1
+        itx = view.itx
 
-        await ctx.reply(
+        await itx.response.defer(thinking=True, ephemeral=True)
+
+        for member in role.members:
+            db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=member.id)
+            if db_members:
+                db_member = db_members[0]
+                db_member.delete()
+                removed_db += 1
+            if len(getattr(member, "roles", [])) > 1:
+                roles = [r for r in member.roles if r.is_assignable()]
+                with contextlib.suppress(discord.Forbidden):
+                    await member.remove_roles(*roles, reason="grouprolestrip")
+                removed_dc += 1
+
+        await (await view.itx.original_response()).edit(
             _(
-                ctx,
+                itx,
                 (
                     "**{db}** database entries have been removed, "
                     "**{dc}** users have been stripped."
@@ -511,108 +502,109 @@ class Verify(commands.Cog):
             ).format(db=removed_db, dc=removed_dc)
         )
         await guild_log.warning(
-            ctx.author,
-            ctx.channel,
+            itx.user,
+            itx.channel,
             f"Removed {removed_db} database entries and "
             f"stripped {removed_dc} members with group role strip on {role.name}.",
         )
 
-    @commands.guild_only()
-    @check.acl2(check.ACLevel.SUBMOD)
-    @verification.group(name="welcome-message")
-    async def verification_welcomemessage(self, ctx):
-        await utils.discord.send_help(ctx)
-
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_welcomemessage.command(name="set")
-    async def verification_welcomemessage_set(self, ctx, rule_name: str, *, text):
-        """Set post verification message for your guild or a rule.
-
-        Args:
-            rule_name: Name of the rule. Leave empty (`""`) for guild.
-        """
-        if text == "":
-            ctx.reply(_(ctx, "Argument `text` must not be empty."))
+    @verification_welcome.command(
+        name="set",
+        description="Set post verification message for your guild or a rule.",
+    )
+    @app_commands.describe(rule_name="Name of the rule. Use `0` for guild.")
+    async def verification_welcome_set(
+        self, itx: discord.Interaction, rule_name: str, text: str
+    ):
+        if not text:
             return
-        if len(rule_name):
-            rule = VerifyRule.get(guild_id=ctx.guild.id, name=rule_name)
+        if rule_name != 0:
+            rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
             if not rule:
-                await ctx.reply(
-                    _(ctx, "Rule named {name} was not found!").format(name=rule_name)
+                await itx.response.send_message(
+                    _(itx, "Rule named {name} was not found!").format(name=rule_name),
+                    ephemeral=True,
                 )
                 return
             rule = rule[0]
         else:
             rule = None
-        VerifyMessage.set(ctx.guild.id, text, rule)
-        await ctx.reply(
+        VerifyMessage.set(itx.guild.id, text, rule)
+        await itx.response.send_message(
             _(
-                ctx,
+                itx,
                 "Message has been set for rule {rule}.",
-            ).format(rule=_(ctx, "(Guild)") if not len(rule_name) else rule_name)
+            ).format(rule=_(itx, "(Guild)") if rule_name == "0" else rule_name),
+            ephemeral=True,
         )
         await guild_log.info(
-            ctx.author,
-            ctx.channel,
+            itx.user,
+            itx.channel,
             "Welcome message changed for rule {}.".format(
-                "(Guild)" if not len(rule_name) else rule_name
+                "(Guild)" if rule_name == "0" else rule_name
             ),
         )
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_welcomemessage.command(name="unset")
-    async def verification_welcomemessage_unset(self, ctx, rule_name: str):
-        """Unset verification message for your guild or a rule.
-
-        Args:
-            rule_name: Name of the rule. Leave empty (`""`) for guild.
-        """
-        if rule_name:
-            rule = VerifyRule.get(guild_id=ctx.guild.id, name=rule_name)
+    @verification_welcome.command(
+        name="unset",
+        description="Unset post verification message for your guild or a rule.",
+    )
+    @app_commands.describe(rule_name="Name of the rule. Use `0` for guild.")
+    async def verification_welcomemessage_unset(
+        self, itx: discord.Interaction, rule_name: str
+    ):
+        if rule_name != "0":
+            rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
             if rule:
                 message = rule[0].message
             else:
-                await ctx.reply(
-                    _(ctx, "Rule named {name} was not found!").format(name=rule_name)
+                await itx.response.send_message(
+                    _(itx, "Rule named {name} was not found!").format(name=rule_name)
                 )
                 return
         else:
-            message = VerifyMessage.get_default(ctx.guild.id)
+            message = VerifyMessage.get_default(itx.guild.id)
 
         if message:
             message.delete()
 
-        await ctx.reply(
-            _(ctx, "Welcome message has been set to default for rule {rule}.").format(
-                rule=_(ctx, "(Guild)") if not rule_name else rule_name
+        await itx.response.send_message(
+            _(itx, "Welcome message has been set to default for rule {rule}.").format(
+                rule=_(itx, "(Guild)") if rule_name == "0" else rule_name
             )
         )
         await guild_log.info(
-            ctx.author,
-            ctx.channel,
-            f"Welcome message set to default for rule {rule_name}.",
+            itx.user,
+            itx.channel,
+            "Welcome message set to default for rule {}.".format(
+                "(Guild)" if rule_name == "0" else rule_name
+            ),
         )
 
     @check.acl2(check.ACLevel.SUBMOD)
-    @verification_welcomemessage.command(name="list")
-    async def verification_welcomemessage_list(self, ctx):
-        """Show verification messages."""
-
+    @verification_welcome.command(
+        name="list", description="Show post verificationmessages."
+    )
+    async def verification_welcomemessage_list(self, itx: discord.Interaction):
         class Item:
             def __init__(self, message: VerifyMessage = None):
                 self.rule = message.rule.name if message and message.rule else None
                 self.message = message.message if message else None
 
         default_message = Item()
-        default_message.rule = _(ctx, "Server default")
+        default_message.rule = _(itx, "Server default")
         default_message.message = getattr(
-            VerifyMessage.get_default(ctx.guild.id),
+            VerifyMessage.get_default(itx.guild.id),
             "message",
-            _(ctx, "You have been verified, congratulations!"),
+            _(itx, "You have been verified, congratulations!"),
         )
         messages = [default_message]
         configured_messages = [
-            Item(message) for message in VerifyMessage.get_all(ctx.guild.id)
+            Item(message) for message in VerifyMessage.get_all(itx.guild.id)
         ]
         configured_messages = filter(
             lambda x: True if x.rule and x.message is not None else False,
@@ -623,137 +615,142 @@ class Verify(commands.Cog):
         table: List[str] = utils.text.create_table(
             messages,
             header={
-                "rule": _(ctx, "Rule name"),
-                "message": _(ctx, "Message to send"),
+                "rule": _(itx, "Rule name"),
+                "message": _(itx, "Message to send"),
             },
         )
-        for page in table:
-            await ctx.send("```" + page + "```")
 
+        page = table[0]
+        await itx.response.send_message(page)
+        if len(table) > 1:
+            for page in table[1:]:
+                await itx.followup.send("```" + page + "```")
+
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification.command(name="update")
+    @verification.command(
+        name="update", description="Update the user's verification status."
+    )
     async def verification_update(
-        self, ctx, member: Union[discord.Member, int], status: str
+        self, itx: discord.Interaction, member: discord.Member, status: VerifyStatus
     ):
-        """Update the user's verification status."""
-        status = status.upper()
-        try:
-            status_value = VerifyStatus[status]
-        except Exception:
-            options = ", ".join([vs for vs in VerifyStatus.__members__])
-            await ctx.reply(
-                _(
-                    ctx,
-                    "Invalid verification status. " "Available options are: {options}.",
-                ).format(status=status, options=options),
+        verify_member = VerifyMember.get(itx.guild.id, user_id=member.id)
+
+        if not verify_member:
+            await itx.response.send_message(
+                _(itx, "That member is not in the database."), ephemeral=True
             )
             return
 
-        verify_member = VerifyMember.get(ctx.guild.id, user_id=member.id)
-
-        if not verify_member:
-            await ctx.reply(_(ctx, "That member is not in the database."))
-            return
-
-        verify_member[0].status = status_value
+        verify_member[0].status = status
         verify_member[0].save()
 
         await guild_log.info(
-            member,
-            member.guild.text_channels[0],
-            f"Verification status of {member} changed to {status}.",
+            itx.user,
+            itx.channel,
+            "Verification status of {member} changed to {status}.".format(
+                member=member.name, status=status
+            ),
         )
-        await ctx.reply(
+        await itx.response.send_message(
             _(
-                ctx,
+                itx,
                 "Member verification status of **{member}** has been updated to **{status}**.",
-            ).format(member=utils.text.sanitise(member.display_name), status=status),
+            ).format(
+                member=member.mention,
+                status=status,
+            ),
+            ephemeral=True,
         )
 
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification.group(name="mapping")
-    async def verification_mapping(self, ctx):
-        await utils.discord.send_help(ctx)
+    @verification_mapping.command(
+        name="info", description="Get mapping information by username and domain."
+    )
+    @app_commands.describe(
+        email="Use `@domain.tld` for domain default or `@` for guild deafult.",
+        hide_response="Hide response from other users.",
+    )
+    async def verification_mapping_info(
+        self, itx: discord.Interaction, email: str, hide_response: bool = True
+    ):
+        if "@" not in email or len(email.split("@")) != 2:
+            await itx.response.send_message(
+                _(itx, "Email must contain exactly 1 @ character."), ephemeral=True
+            )
+            return
 
-    @check.acl2(check.ACLevel.MOD)
-    @verification_mapping.command(name="info")
-    async def verification_mapping_info(self, ctx, username: str, domain: str):
-        """Get mapping information by username and domain.
-
-        Args:
-            username: Username. Leave empty (`""`) for domain default mapping.
-            domain: Domain. Leave empty (`""`) for guild default mapping.
-
-        """
-        await utils.discord.delete_message(ctx.message)
+        parts = email.split("@")
+        username = parts[0]
+        domain = parts[1]
 
         mapping = await self._map(
-            ctx=ctx, guild_id=ctx.guild.id, username=username, domain=domain
+            itx=itx, guild_id=itx.guild.id, username=username, domain=domain
         )
 
         if not username and not domain:
-            title = _(ctx, "Default mapping")
-            mapping_name = _(ctx, "Default")
+            title = _(itx, "Default mapping")
+            mapping_name = _(itx, "Default")
         else:
-            title = _(ctx, "Mapping for {username}@{domain}").format(
+            title = _(itx, "Mapping for {username}@{domain}").format(
                 username=username, domain=domain
             )
             mapping_name = mapping.username + "@" + mapping.domain
 
-        embed = utils.discord.create_embed(author=ctx.author, title=title)
+        embed = utils.discord.create_embed(author=itx.user, title=title)
 
         if isinstance(mapping, CustomMapping):
             embed.add_field(
-                name=_(ctx, "Mapping extension:"),
+                name=_(itx, "Mapping extension:"),
                 value=MappingExtension.get_name(mapping),
             )
 
-        embed.add_field(name=_(ctx, "Applied mapping:"), value=mapping_name)
+        embed.add_field(name=_(itx, "Applied mapping:"), value=mapping_name)
 
         embed.add_field(
-            name=_(ctx, "Verification allowed:"),
-            value=_(ctx, "True") if mapping and mapping.rule else _(ctx, "False"),
+            name=_(itx, "Verification allowed:"),
+            value=_(itx, "True") if mapping and mapping.rule else _(itx, "False"),
         )
 
         embed.add_field(
-            name=_(ctx, "Rule name:"),
+            name=_(itx, "Rule name:"),
             value=mapping.rule.name if mapping and mapping.rule else "-",
         )
 
-        await ctx.send(embed=embed)
+        await itx.response.send_message(embed=embed, ephemeral=hide_response)
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @commands.max_concurrency(1, per=commands.BucketType.default, wait=False)
-    @verification_mapping.command(name="import")
+    @verification_mapping.command(name="import", description="Import mapping data.")
+    @app_commands.describe(
+        attachment="CSV file in format: `username;domain;rule_name`. For domain / global rule, leave the part empty.",
+        wipe="Remove all mapping data and do clean import.",
+    )
     async def verification_mapping_import(
-        self, ctx, attachment: discord.Attachment, wipe: bool = False
+        self,
+        itx: discord.Interaction,
+        attachment: discord.Attachment,
+        wipe: bool = False,
     ):
-        """Import mapping data.
-
-        The file must be CSV and must have this format:
-        ```username;domain;rule_name```
-
-        Where username is the part before @ sign in email and domain is the part after @ sign.
-
-        For domain global rule leave username empty.
-        For global rule leave username and domain empty.
-
-        Args:
-            attachment: CSV file with mapping data
-            wipe: Remove all mapping data and do clean import.
-        """
         if not attachment.filename.lower().endswith("csv"):
-            await ctx.reply(_(ctx, "Supported format is only CSV."))
+            await itx.response.send_message(
+                _(itx, "Supported format is only CSV."), ephemeral=True
+            )
             return
-        await ctx.reply(_(ctx, "Processing. Make a coffee, it may take a while."))
+        await itx.response.send_message(
+            _(itx, "Processing. Make a coffee, it may take a while.")
+        )
 
         if wipe:
-            async with ctx.typing():
-                wiped = VerifyMapping.wipe(ctx.guild.id)
-                await ctx.reply(_(ctx, "Wiped {wiped} mappings.").format(wiped=wiped))
+            async with itx.channel.typing():
+                wiped = VerifyMapping.wipe(itx.guild.id)
+                await itx.followup.send(
+                    _(itx, "Wiped {wiped} mappings.").format(wiped=wiped)
+                )
 
-        async with ctx.typing():
+        async with itx.channel.typing():
             data_file = tempfile.NamedTemporaryFile()
             await attachment.save(data_file.name)
             file = open(data_file.name, "rt")
@@ -765,8 +762,8 @@ class Verify(commands.Cog):
             for row in csv_reader:
                 count += 1
                 if len(row) != 3:
-                    await ctx.reply(
-                        _(ctx, "Row {row} has invalid number of columns!").format(
+                    await itx.followup.send(
+                        _(itx, "Row {row} has invalid number of columns!").format(
                             row=count
                         )
                     )
@@ -776,10 +773,10 @@ class Verify(commands.Cog):
                 rule = None
 
                 if len(rule_name):
-                    rule = VerifyRule.get(guild_id=ctx.guild.id, name=rule_name)
+                    rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
                     if not rule:
-                        await ctx.reply(
-                            _(ctx, "Row {row} has invalid rule name: {name}!").format(
+                        await itx.followup.send(
+                            _(itx, "Row {row} has invalid rule name: {name}!").format(
                                 row=count, name=rule_name
                             )
                         )
@@ -787,7 +784,7 @@ class Verify(commands.Cog):
                     rule = rule[0]
 
                 VerifyMapping.add(
-                    guild_id=ctx.guild.id,
+                    guild_id=itx.guild.id,
                     username=username,
                     domain=domain,
                     rule=rule,
@@ -796,124 +793,128 @@ class Verify(commands.Cog):
         file.close()
         data_file.close()
 
-        await ctx.reply(_(ctx, "Imported {count} mappings.").format(count=count))
+        await itx.followup.send(
+            _(itx, "Imported {count} mappings.").format(count=count)
+        )
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_mapping.command(name="remove")
-    async def verification_mapping_remove(self, ctx, username: str, domain: str):
-        """Remove verification mapping.
+    @verification_mapping.command(
+        name="remove", description="Remove verification mapping."
+    )
+    @app_commands.describe(
+        email="Use `@domain.tld` for domain default or `@` for guild deafult."
+    )
+    async def verification_mapping_remove(self, itx: discord.Interaction, email: str):
+        if "@" not in email or len(email.split("@")) != 2:
+            await itx.response.send_message(
+                _(itx, "Email must contain exactly 1 @ character."), ephemeral=True
+            )
+            return
 
-        Leave username empty for domain default mapping.
-        Leave username and domain empty for default guild mapping.
+        parts = email.split("@")
+        username = parts[0]
+        domain = parts[1]
 
-        Args:
-            username: Username. Leave empty (`""`) for domain default mapping.
-            domain: Domain. Leave empty (`""`) for guild default mapping.
-        """
         mapping = VerifyMapping.get(
-            guild_id=ctx.guild.id, username=username, domain=domain
+            guild_id=itx.guild.id, username=username, domain=domain
         )
 
         if not mapping:
-            await ctx.reply(
-                _(ctx, "Mapping for {name}@{domain} not found!").format(
+            await itx.response.send_message(
+                _(itx, "Mapping for {name}@{domain} not found!").format(
                     name=username, domain=domain
                 )
             )
             return
 
         dialog = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Mapping remove"),
+            author=itx.user,
+            title=_(itx, "Mapping remove"),
             description=_(
-                ctx, "Do you really want to remove mapping for {name}@{domain}?"
+                itx, "Do you really want to remove mapping for {name}@{domain}?"
             ).format(
                 name=username,
                 domain=domain,
             ),
         )
-        view = utils.objects.ConfirmView(ctx, dialog)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
-            await ctx.reply(_(ctx, "Removing aborted."))
+            try:
+                await (await itx.original_response()).edit(_(itx, "Removing aborted."))
+            except Exception:
+                pass
             return
 
         mapping[0].delete()
-        await ctx.reply(_(ctx, "Mapping successfuly removed."))
+        await view.itx.response.send_message(_(itx, "Mapping successfuly removed."))
 
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification.group(name="rule")
-    async def verification_rule(self, ctx):
-        await utils.discord.send_help(ctx)
-
-    @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="add")
-    async def verification_rule_add(self, ctx, name: str, *roles: discord.Role):
-        """Add new verification rule. Name must be unique.
-
-        Assign Discord roles to rule (if provided).
-
-        Rule without roles will not work in verification process and must be fixed later on!
-
-        Args:
-            name: Name of the rule.
-            roles: List of Discord roles (optional)
-
-        """
-        rule = VerifyRule.add(guild_id=ctx.guild.id, name=name)
+    @verification_rule.command(name="add", description="Creates verification rule.")
+    @app_commands.describe(name="Name of the rule.", role="First role to add.")
+    async def verification_rule_add(
+        self, itx: discord.Interaction, name: str, role: discord.Role = None
+    ):
+        rule = VerifyRule.add(guild_id=itx.guild.id, name=name)
 
         if not rule:
-            await ctx.reply(
-                _(ctx, "Rule with name {name} already exists!").format(name=name)
+            await itx.response.send_message(
+                _(itx, "Rule with name {name} already exists!").format(name=name),
+                ephemeral=True,
             )
             return
 
-        role_ids = [role.id for role in roles]
-        rule.add_roles(role_ids)
+        if role:
+            rule.add_roles(role.id)
 
-        await ctx.reply(_(ctx, "Rule with name {name} added!").format(name=name))
+        await itx.response.send_message(
+            _(itx, "Rule with name {name} added!").format(name=name)
+        )
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="remove")
-    async def verification_rule_remove(self, ctx, name: str):
-        """Remove verification rule.
-
-        Args:
-            name: Name of the rule.
-        """
-        rule = VerifyRule.get(guild_id=ctx.guild.id, name=name)
+    @verification_rule.command(name="remove", description="Delete verification rule")
+    @app_commands.describe(name="Name of the rule.")
+    async def verification_rule_remove(self, itx: discord.Interaction, name: str):
+        rule = VerifyRule.get(guild_id=itx.guild.id, name=name)
 
         if not rule:
-            await ctx.reply(
-                _(ctx, "Rule with name {name} not found!").format(name=name)
+            await itx.response.send_message(
+                _(itx, "Rule with name {name} not found!").format(name=name)
             )
             return
 
         dialog = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Rule remove"),
-            description=_(ctx, "Do you really want to remove rule {name}?").format(
+            author=itx.user,
+            title=_(itx, "Rule remove"),
+            description=_(itx, "Do you really want to remove rule {name}?").format(
                 name=name
             ),
         )
-        view = utils.objects.ConfirmView(ctx, dialog)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
-            await ctx.reply(_(ctx, "Removing aborted."))
+            try:
+                await (await itx.original_response()).edit(_(itx, "Removing aborted."))
+            except Exception:
+                pass
             return
 
         rule[0].delete()
 
-        await ctx.reply(_(ctx, "Rule {name} successfuly removed.").format(name=name))
+        await view.itx.response.send_message(
+            _(itx, "Rule {name} successfuly removed.").format(name=name)
+        )
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="list")
-    async def verification_rule_list(self, ctx):
-        """List all rules."""
-        rules = VerifyRule.get(guild_id=ctx.guild.id)
+    @verification_rule.command(name="list", description="List all rules.")
+    async def verification_rule_list(self, itx: discord.Interaction):
+        rules = VerifyRule.get(guild_id=itx.guild.id)
 
         class Item:
             def __init__(self, rule):
@@ -925,190 +926,193 @@ class Verify(commands.Cog):
         for rule in rules:
             items.append(Item(rule))
 
-        table: List[str] = utils.text.create_table(
+        tables: List[str] = utils.text.create_table(
             items,
             header={
-                "rule": _(ctx, "Rule name"),
-                "role_count": _(ctx, "Role count"),
+                "rule": _(itx, "Rule name"),
+                "role_count": _(itx, "Role count"),
             },
         )
 
-        for page in table:
-            await ctx.send("```" + page + "```")
+        await itx.response.defer()
 
+        for page in tables:
+            await itx.followup.send("```" + page + "```")
+
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="info")
-    async def verification_rule_info(self, ctx, name):
-        """Show information about rule.
-
-        Args:
-            name: Rule name"""
-        rule = VerifyRule.get(guild_id=ctx.guild.id, name=name)
+    @verification_rule.command(name="info", description="Show information about rule.")
+    async def verification_rule_info(self, itx: discord.Interaction, rule_name: str):
+        rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
 
         if not rule:
-            await ctx.reply(
-                _(ctx, "Rule with name {name} not found!").format(name=name)
+            await itx.response.send_message(
+                _(itx, "Rule with name {name} not found!").format(name=rule_name)
             )
             return
 
         rule = rule[0]
 
         embed = utils.discord.create_embed(
-            author=ctx.author,
-            title=_(ctx, "Rule information"),
+            author=itx.user,
+            title=_(itx, "Rule information"),
             description=rule.name,
         )
 
         embed.add_field(
-            name=_(ctx, "Has custom message:"),
-            value=_(ctx, "True") if rule.message else _(ctx, "False"),
+            name=_(itx, "Has custom message:"),
+            value=_(itx, "True") if rule.message else _(itx, "False"),
         )
 
         roles = []
 
         for db_role in rule.roles:
-            role = ctx.guild.get_role(db_role.role_id)
+            role = itx.guild.get_role(db_role.role_id)
             if role:
                 roles.append(role.mention)
             else:
                 roles.append(f"{db_role.role_id} (DELETED)")
 
         embed.add_field(
-            name=_(ctx, "Assigned roles:"),
+            name=_(itx, "Assigned roles:"),
             value=", ".join(roles) if roles else "-",
             inline=False,
         )
-        await ctx.reply(embed=embed)
+        await itx.response.send_message(embed=embed, ephemeral=True)
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="addroles", aliases=["add-roles"])
-    async def verification_rule_addroles(
-        self, ctx, rule_name: str, *roles: discord.Role
+    @verification_rule.command(
+        name="addrole", description="Add Discord roles to verification rule."
+    )
+    @app_commands.describe(rule_name="Name of the rule.", role="Discord role to add.")
+    async def verification_rule_addrole(
+        self, itx: discord.Interaction, rule_name: str, role: discord.Role
     ):
-        """Add Discord roles to verification rule.
-
-        Args:
-            rule_name: Name of the rule.
-            roles: List of Discord roles to add.
-        """
-        rule = VerifyRule.get(guild_id=ctx.guild.id, name=rule_name)
+        rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
 
         if not rule:
-            await ctx.reply(
-                _(ctx, "Rule with name {name} not found!").format(name=rule_name)
+            await itx.response.send_message(
+                _(itx, "Rule with name {name} not found!").format(name=rule_name),
+                ephemeral=True,
             )
             return
 
-        role_ids = [role.id for role in roles]
-        rule[0].add_roles(role_ids)
+        rule[0].add_roles(role.id)
 
-        await ctx.reply(_(ctx, "Roles added to rule {name}!").format(name=rule_name))
+        await itx.response.send_message(
+            _(itx, "Role {role} added to rule {name}!").format(
+                role=role.name, name=rule_name
+            )
+        )
 
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification_rule.command(name="removeroles", aliases=["remove-roles"])
+    @verification_rule.command(
+        name="removerole", description="Remove Discord roles from verification rule."
+    )
+    @app_commands.describe(
+        rule_name="Name of the rule.", role="Discord role to remove."
+    )
     async def verification_rule_removeroles(
-        self, ctx, rule_name: str, roles: List[discord.Role]
+        self, itx: discord.Interaction, rule_name: str, role: discord.Role
     ):
-        """Remove Discord roles from verification rule.
-
-        Args:
-            rule_name: Name of the rule.
-            roles: List of Discord roles to remove.
-        """
-        rule = VerifyRule.get(guild_id=ctx.guild.id, name=rule_name)
+        rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
 
         if not rule:
-            await ctx.reply(
-                _(ctx, "Rule with name {name} not found!").format(name=rule_name)
+            await itx.response.send_message(
+                _(itx, "Rule with name {name} not found!").format(name=rule_name)
             )
             return
 
-        role_ids = [role.id for role in roles]
-        rule[0].delete_roles(role_ids)
+        rule[0].delete_roles(role.id)
 
-        await ctx.reply(
-            _(ctx, "Roles removed from rule {name}!").format(name=rule_name)
+        await itx.response.send_message(
+            _(itx, "Role {role} removed from rule {name}!").format(
+                role=role.name, name=rule_name
+            )
         )
 
-    @commands.guild_only()
+    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @verification.group(name="reverify")
-    async def verification_reverify(self, ctx):
-        await utils.discord.send_help(ctx)
-
-    @check.acl2(check.ACLevel.MOD)
-    @verification_reverify.command(name="preview")
-    async def verification_reverify_preview(self, ctx):
-        """Show changes that would be made by reverification.
-
-        The process will fail if Discord role assigned to verification rule was deleted!
-
-        **BEWARE** In case of many users, this command can hit rate limit!"""
-        confirm = await self._reverify_confirm(
-            ctx,
-            _(
-                ctx,
-                (
-                    "Do you really want to preview reverify results? "
-                    "This operation might take a while and the bot might hit rate limit!"
-                ),
+    @verification_reverify.command(
+        name="preview", description="Show changes that would be made by reverification."
+    )
+    async def verification_reverify_preview(self, itx: discord.Interaction):
+        text = _(
+            itx,
+            (
+                "Do you really want to preview reverify results? "
+                "This operation might take a while and the bot might hit rate limit!"
             ),
         )
+
+        dialog = utils.discord.create_embed(
+            author=itx.user, title=_(itx, "Reverify confirm"), description=text
+        )
+        view = ConfirmView(utx=itx, embed=dialog, delete=False)
+        view.timeout = 90
+        confirm = await view.send()
         if not confirm:
-            await ctx.reply(_(ctx, "Reverify preview aborted."))
+            await (await itx.original_response()).edit(
+                content=_(itx, "Reverify preview aborted.")
+            )
             return
 
-        await self._process_reverify(ctx, preview=True)
+        await self._process_reverify(itx, preview=True)
 
     @check.acl2(check.ACLevel.MOD)
-    @verification_reverify.command(name="execute")
-    async def verification_reverify_execute(self, ctx):
-        """**THIS COMMAND IS IRREVERSIBLE!**
-
-        Process the reverification based on current mapping and rules.
-
-        The process will fail if Discord role assigned to verification rule was deleted!
-
-        **BEWARE** In case of many users, this command can hit rate limit!"""
-        confirm = await self._reverify_confirm(
-            ctx,
-            _(
-                ctx,
-                (
-                    "Do you really want to execute reverify? "
-                    "The operation is **irreversible**! "
-                    "This operation might take a while and the bot might hit rate limit!"
-                ),
+    @verification_reverify.command(
+        name="execute", description="THIS COMMAND IS IRREVERSIBLE!"
+    )
+    async def verification_reverify_execute(self, itx: discord.Interaction):
+        text = _(
+            itx,
+            (
+                "Do you really want to execute reverify? "
+                "The operation is **irreversible**."
+                "This operation might take a while and the bot might hit rate limit!"
             ),
         )
+
+        dialog = utils.discord.create_embed(
+            author=itx.user, title=_(itx, "Reverify confirm"), description=text
+        )
+        view = ConfirmView(utx=itx, embed=dialog, delete=False)
+        view.timeout = 90
+        confirm = await view.send()
         if not confirm:
-            await ctx.reply(_(ctx, "Reverify execution aborted."))
+            await (await itx.original_response()).edit(
+                content=_(itx, "Reverify preview aborted.")
+            )
             return
 
-        await self._process_reverify(ctx, preview=False)
+        await self._process_reverify(itx, preview=False)
 
-    async def _process_reverify(self, ctx, preview: bool = True):
+    async def _process_reverify(self, itx: discord.Interaction, preview: bool = True):
         """Helper function to process the reverify.
 
         In preview mode, this function only sends messages to chat instead of updating users.
 
-        :param ctx: Command context
+        :param itx: Discord interaction
         :param preview: If True, no changes to users, roles and DB are made.
         """
         managed_roles: List[int] = list(
-            set([db_role.role_id for db_role in VerifyRole.get(ctx.guild.id)])
+            set([db_role.role_id for db_role in VerifyRole.get(itx.guild.id)])
         )
 
-        if not await self._check_managed_roles(ctx, managed_roles):
+        if not await self._check_managed_roles(itx, managed_roles):
             return
 
-        verify_members: List[VerifyMember] = VerifyMember.get(guild_id=ctx.guild.id)
+        await itx.response.send_message(_(itx, "Reverification starting..."))
+
+        verify_members: List[VerifyMember] = VerifyMember.get(guild_id=itx.guild.id)
 
         stripped_count = 0
         updated_count = 0
 
         for verify_member in verify_members:
-            dc_member: discord.Member = ctx.guild.get_member(verify_member.user_id)
+            dc_member: discord.Member = itx.guild.get_member(verify_member.user_id)
 
             if not dc_member:
                 continue
@@ -1120,16 +1124,16 @@ class Verify(commands.Cog):
             ]
 
             mapping = await self._map(
-                ctx=ctx, guild_id=ctx.guild.id, email=verify_member.address
+                itx=itx, guild_id=itx.guild.id, email=verify_member.address
             )
 
             # Mapping or rule not found = strip
             if not mapping or not mapping.rule:
                 stripped_count += 1
                 if preview:
-                    await ctx.send(
+                    await itx.followup.send(
                         _(
-                            ctx,
+                            itx,
                             "[Preview] Member {member} stripped - no mapping found or verification blocked!",
                         ).format(member=dc_member.mention)
                     )
@@ -1154,17 +1158,17 @@ class Verify(commands.Cog):
             updated_count += 1
 
             if preview:
-                await self._preview_update(ctx, add_roles, remove_roles, dc_member)
+                await self._preview_update(itx, add_roles, remove_roles, dc_member)
             else:
-                add_roles = [ctx.guild.get_role(role) for role in add_roles]
+                add_roles = [itx.guild.get_role(role) for role in add_roles]
                 await dc_member.add_roles(*add_roles, reason="reverify")
 
-                remove_roles = [ctx.guild.get_role(role) for role in remove_roles]
+                remove_roles = [itx.guild.get_role(role) for role in remove_roles]
                 await dc_member.remove_roles(*remove_roles, reason="reverify")
 
-        await ctx.send(
+        await itx.followup.send(
             _(
-                ctx,
+                itx,
                 "Updated {updated} and stripped {stripped} out of {total} verify members.",
             ).format(
                 updated=str(updated_count),
@@ -1173,19 +1177,21 @@ class Verify(commands.Cog):
             )
         )
 
-    async def _check_managed_roles(self, ctx, managed_roles: List[int]) -> bool:
+    async def _check_managed_roles(
+        self, itx: discord.Interaction, managed_roles: List[int]
+    ) -> bool:
         """Helper function to check if every managed role exists.
 
-        :param ctx: Command context
+        :param itx: Command context
         :param managed_roles: List of managed role IDs
         :return: True if everything is OK, False if role does not exist
         """
         for managed_role in managed_roles:
-            role = ctx.guild.get_role(managed_role)
+            role = itx.guild.get_role(managed_role)
             if not role:
-                await ctx.send(
+                await itx.response.send_message(
                     _(
-                        ctx,
+                        itx,
                         "Role with ID {role_id} was not found! Please fix your verify rules and try again!",
                     ).format(role_id=managed_role)
                 )
@@ -1194,14 +1200,14 @@ class Verify(commands.Cog):
 
     async def _preview_update(
         self,
-        ctx,
+        itx: discord.Interaction,
         add_roles: List[int],
         remove_roles: List[int],
         dc_member: discord.Member,
     ):
         """Helper function to format the reverify preview message.
 
-        :param ctx: Command context
+        :param itx: Command context
         :param add_roles: List of role IDs to add
         :param remove_roles: List of role IDs to remove
         :param dc_member: Member that would be affected by reverify
@@ -1216,9 +1222,9 @@ class Verify(commands.Cog):
             if add_roles
             else "-"
         )
-        await ctx.send(
+        await itx.followup.send(
             _(
-                ctx,
+                itx,
                 "[Preview] Removed roles {removed_roles} and added roles {added_roles} for {member}.",
             ).format(
                 removed_roles=removed_roles,
@@ -1226,19 +1232,6 @@ class Verify(commands.Cog):
                 member=dc_member.mention,
             )
         )
-
-    async def _reverify_confirm(self, ctx, text: str) -> bool:
-        """Helper functions to show reverify execute and preview confirm dialog.
-
-        :param ctx: Command context
-        :param text: Text of the confirm dialog"""
-        dialog = utils.discord.create_embed(
-            author=ctx.author, title=_(ctx, "Reverify confirm"), description=text
-        )
-        view = utils.objects.ConfirmView(ctx, dialog)
-        view.timeout = 90
-        answer = await view.send()
-        return answer
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -1309,50 +1302,49 @@ class Verify(commands.Cog):
 
     #
 
-    async def _member_exists(self, ctx: commands.Context, address: str):
+    async def _member_exists(self, itx: discord.Interaction, address: str):
         """Check if VerifyMember exists in database.
 
         If the member exists, the event is logged and a response is
         sent to the user.
 
-        :param ctx: Command context
+        :param itx: Command context
         :param address: Supplied e-mail address
         """
         db_member: VerifyMember = VerifyMember.get(
-            guild_id=ctx.guild.id, user_id=ctx.author.id
+            guild_id=itx.guild.id, user_id=itx.user.id
         )
         if db_member:
             await guild_log.debug(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 (
                     "Attempted to verify with Discord account already in database (status: {status})."
                 ).format(status=VerifyStatus(db_member[0].status).name),
             )
-            await ctx.send(
-                _(
-                    ctx,
+            await (await itx.original_response()).edit(
+                content=_(
+                    itx,
                     (
-                        "{mention} Your user account is already in the database. "
+                        "Your user account is already in the database. "
                         "Check the e-mail inbox or contact the moderator team."
                     ),
-                ).format(mention=ctx.author.mention),
-                delete_after=120,
+                )
             )
             return True
 
         return False
 
-    async def _address_exists(self, ctx: commands.Context, address: str):
+    async def _address_exists(self, itx: discord.Interaction, address: str):
         """Check if member's e-mail exists in database.
 
         If the e-mail exists, the event is logged and a response is
         sent to the user.
 
-        :param ctx: Command context
+        :param itx: Command context
         :param address: Supplied e-mail address
         """
-        db_members = VerifyMember.get(guild_id=ctx.guild.id, address=address)
+        db_members = VerifyMember.get(guild_id=itx.guild.id, address=address)
         if db_members:
             db_member = db_members[0]
             dc_member: Optional[discord.User] = self.bot.get_user(db_member.user_id)
@@ -1362,8 +1354,8 @@ class Verify(commands.Cog):
                 else f"ID '{db_member.user_id}'"
             )
             await guild_log.info(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 (
                     "Attempted to verify with address associated with different user: "
                     f"The address is registered to account {dc_member_str} "
@@ -1371,51 +1363,47 @@ class Verify(commands.Cog):
                 ),
             )
 
-            await ctx.send(
-                _(
-                    ctx,
+            await (await itx.original_response()).edit(
+                content=_(
+                    itx,
                     (
-                        "{mention} This e-mail is already in the database "
+                        "This e-mail is already in the database "
                         "registered under different user account. "
                         "Login with that account and/or contact the moderator team."
                     ),
-                ).format(mention=ctx.author.mention),
-                delete_after=120,
+                )
             )
             return True
 
         return False
 
-    async def _is_supported_address(self, ctx: commands.Context, address: str):
+    async def _is_supported_address(self, itx: discord.Interaction, address: str):
         """Check if the address is allowed to verify.
 
         If the address is not supported, the event is logged and a response is
         sent to the user.
 
-        :param ctx: Command context
+        :param itx: Command context
         :param address: Supplied e-mail address
         """
         try:
-            mapping = await self._map(ctx=ctx, guild_id=ctx.guild.id, email=address)
+            mapping = await self._map(itx=itx, guild_id=itx.guild.id, email=address)
         except ValueError:
             mapping = None
 
         if not mapping or not mapping.rule:
             anonymize: bool = storage.get(
-                module=self, guild_id=ctx.guild.id, key="anonymize", default_value=True
+                module=self, guild_id=itx.guild.id, key="anonymize", default_value=True
             )
             await guild_log.info(
-                ctx.author,
-                ctx.channel,
+                itx.user,
+                itx.channel,
                 "Attempted to verify with unsupported address {address}.".format(
                     address=address if not anonymize else "(anonymized)"
                 ),
             )
-            await ctx.send(
-                _(ctx, "{mention} This e-mail cannot be used.").format(
-                    mention=ctx.author.mention
-                ),
-                delete_after=120,
+            await (await itx.original_response()).edit(
+                content=_(itx, "This e-mail cannot be used.")
             )
             return False
 
@@ -1424,7 +1412,7 @@ class Verify(commands.Cog):
     async def _map(
         self,
         guild_id: int,
-        ctx: commands.Context = None,
+        itx: discord.Interaction = None,
         username: str = None,
         domain: str = None,
         email: str = None,
@@ -1437,16 +1425,16 @@ class Verify(commands.Cog):
                 )
             except Exception as exc:
                 await bot_log.error(
-                    ctx.author if ctx else None,
-                    ctx.channel if ctx else None,
+                    itx.user if itx else None,
+                    itx.channel if itx else None,
                     f"Error during '{name}' MappingExtension processing.",
                     exception=exc,
                 )
             if mapping:
                 if not isinstance(mapping, CustomMapping):
                     await bot_log.error(
-                        ctx.author if ctx else None,
-                        ctx.channel if ctx else None,
+                        itx.user if itx else None,
+                        itx.channel if itx else None,
                         f"MappingExtension '{name}' map function returned {mapping.__class__}.",
                     )
                 return mapping
@@ -1484,7 +1472,7 @@ class Verify(commands.Cog):
         clear_list: List[str] = [
             _(
                 utx,
-                "Your verification e-mail for Discord server {guild_name} is {code}.",
+                "Your verification code for Discord server {guild_name} is {code}.",
             ).format(guild_name=member.guild.name, code=code),
             _(utx, "You can use it by sending the following message:"),
             "  "
@@ -1519,7 +1507,7 @@ class Verify(commands.Cog):
         return message
 
     async def _send_email(
-        self, ctx: commands.Context, message: MIMEMultipart, retry: bool = True
+        self, itx: discord.Interaction, message: MIMEMultipart, retry: bool = True
     ) -> None:
         """Send the verification e-mail."""
         try:
@@ -1531,31 +1519,30 @@ class Verify(commands.Cog):
         except (smtplib.SMTPException, smtplib.SMTPNotSupportedError) as exc:
             if retry and not isinstance(exc, smtplib.SMTPNotSupportedError):
                 await bot_log.warning(
-                    ctx.author,
-                    ctx.channel,
+                    itx.user,
+                    itx.user,
                     "Could not send verification e-mail, trying again.",
                     exception=exc,
                 )
-                return await self._send_email(ctx, message, False)
+                return await self._send_email(itx, message, False)
             else:
                 await bot_log.error(
-                    ctx.author,
-                    ctx.channel,
+                    itx.user,
+                    itx.channel,
                     "Could not send verification e-mail.",
                     "Email: {}".format(
                         message["To"].encode("unicode-escape").decode("utf-8")
                     ),
                     exception=exc,
                 )
-                await ctx.send(
-                    _(
-                        ctx,
+                await (await itx.original_response()).edit(
+                    content=_(
+                        itx,
                         (
-                            "{mention} An error has occured while sending the code. "
+                            "An error has occured while sending the code. "
                             "Contact the moderator team."
                         ),
-                    ).format(mention=ctx.author.mention),
-                    delete_after=120,
+                    )
                 )
                 return False
 

@@ -289,41 +289,32 @@ msgstr Role k navrácení
 msgid Channels to return
 msgstr Kanály k navrácení
 
-msgid {mention} You have to include your e-mail.
-msgstr {mention} Ke zprávě musíš přiložit svůj e-mail.
+msgid I've sent you the verification code to the submitted e-mail.
+msgstr Na zadaný e-mail ti byl poslán verifikační kód.
 
-msgid {mention} I've sent you the verification code to the submitted e-mail.
-msgstr {mention} Na zadaný e-mail ti byl poslán verifikační kód.
-
-msgid I could not send the verification code, you've probably made a typo: `{address}`. Invoke the command `{prefix}strip` before requesting a new code.
-msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně v něm je překlep: `{address}`. Použij příkaz `{prefix}strip` předtím, než zažádáš o nový kód.
-
-msgid I could not send the verification code, you've probably made a typo. Invoke the command `{prefix}strip` before requesting a new code.
-msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně v něm je překlep. Použij příkaz `{prefix}strip` předtím, než zažádáš o nový kód.
+msgid I could not send the verification code, you've probably made a typo: `{address}`. Invoke the command `/strip` before requesting a new code.
+msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně máš překlep v adrese: `{address}`. Použij příkaz `/strip` předtím, než zažádáš o nový kód.
 
 msgid If I'm wrong and the e-mail is correct, contact the moderator team.
 msgstr Pokud se pletu a e-mail je správný, kontaktuj moderátory.
 
-msgid {mention} You have to include your verification code.
-msgstr {mention} Musíš přiložit verifikační kód.
+msgid {mention} I could not send the verification code, you've probably made a typo. Invoke the command `/strip` before requesting a new code.
+msgstr {mention} Nemohl ti být zaslán verifikační kód, pravděpodobně máš překlep v mailu. Použij příkaz `/strip` předtím, než zažádáš o nový kód.
 
-msgid {mention} You have to request the code first.
-msgstr {mention} Nejdřív musíš požádat o kód.
+msgid You have to request the code first.
+msgstr Nejdřív musíš požádat o kód.
 
-msgid {mention} You are not in code verification phase. Contact the moderator team.
-msgstr {mention} Nejsi ve verifikační fázi. Kontaktuj moderátory.
+msgid You are not in code verification phase. Contact the moderator team.
+msgstr Nejsi ve verifikační fázi. Kontaktuj moderátory.
 
-msgid {mention} That is not your verification code.
-msgstr {mention} To není tvůj verifikační kód.
+msgid That is not your verification code.
+msgstr To není tvůj verifikační kód.
 
 msgid Could not assign roles. Please contact moderator team.
 msgstr Nelze přiřadit role. Prosím kontaktuj moderátory.
 
 msgid You have been verified, congratulations!
 msgstr Verifikace proběhla úspěšně, gratuluji!
-
-msgid Member **{name}** has been verified.
-msgstr Uživatel **{name}** byl verifikován.
 
 msgid Something went wrong, contact the moderator team.
 msgstr Něco se pokazilo, kontaktuj moderátory.
@@ -349,17 +340,11 @@ msgstr Anonymizace je **VYPNUTA**. Emailové adresy se objeví v logu.
 msgid Group strip
 msgstr Hromadný reset rolí
 
-msgid **{count}** mentioned users will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
-msgstr **{count}** zmíněných uživatelů ztratí své role a jejich verifikace bude zrušena. Nebudou o tomto kroku informováni. Pokračovat?
+msgid **{member}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
+msgstr Uživatel **{member}** ztratí své role a jeho verifikace bude zrušena. Nebude o tomto kroku informován. Pokračovat?
 
-msgid Member **{member_id}** (<@{member_id}>) has no roles.
-msgstr Člen **{member_id}** (<@{member_id}>) nemá žádné role.
-
-msgid Member **{member_id}** (<@{member_id}>) not found.
-msgstr Člen **{member_id}** (<@{member_id}>) nebyl nalezen.
-
-msgid **{db}** database entries have been removed, **{dc}** users have been stripped.
-msgstr **{db}** záznamů bylo odstraněno z databáze, **{dc}** uživatelům byly odebrány role.
+msgid Member **{member}** ({member_id}) stripped.
+msgstr Role uživatele **{member}** ({member_id}) odebrány.
 
 msgid Role based strip
 msgstr Reset verifikace podle rolí
@@ -367,8 +352,8 @@ msgstr Reset verifikace podle rolí
 msgid **{count}** members with role **{role}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
 msgstr **{count}** uživatelů s rolí **{role}** ztratí své role a jejich verifikace bude zrušena. Nebudou o tomto kroku informováni. Pokračovat?
 
-msgid Argument `text` must not be empty.
-msgstr Argument `text` nesmí být prázdný.
+msgid **{db}** database entries have been removed, **{dc}** users have been stripped.
+msgstr **{db}** záznamů bylo odstraněno z databáze, **{dc}** uživatelům byly odebrány role.
 
 msgid Rule named {name} was not found!
 msgstr Pravidlo s názvem {name} nenalezeno!
@@ -388,14 +373,14 @@ msgstr Jméno pravidla
 msgid Message to send
 msgstr Zpráva k odeslání
 
-msgid Invalid verification status. Available options are: {options}.
-msgstr Neplatný verifikační status. Platné možnosti jsou: {options}.
-
 msgid That member is not in the database.
 msgstr Tento uživatel není v databázi.
 
 msgid Member verification status of **{member}** has been updated to **{status}**.
 msgstr Verifikační status uživatele **{member}** byl aktualizován na **{status}**.
+
+msgid Email must contain exactly 1 @ character.
+msgstr Email musí obsahovat přesně 1 @ znak.
 
 msgid Default mapping
 msgstr Výchozí mapování
@@ -481,23 +466,26 @@ msgstr Má vlastní zprávu:
 msgid Assigned roles:
 msgstr Přiřazené role:
 
-msgid Roles added to rule {name}!
-msgstr Role přidány k pravidlu {name}!
+msgid Role {role} added to rule {name}!
+msgstr Role {role} přidána k pravidlu {name}!
 
-msgid Roles removed from rule {name}!
-msgstr Role odstraněny z pravidla {name}!
+msgid Role {role} removed from rule {name}!
+msgstr Role {role}  odstraněna z pravidla {name}!
 
 msgid Do you really want to preview reverify results? This operation might take a while and the bot might hit rate limit!
 msgstr Opravdu chcete zobrazit ukázku reverify? Tato operace může chvíli trvat a bot může narazit na rate limit!
 
+msgid Reverify confirm
+msgstr Potvrzení reverifikace
+
 msgid Reverify preview aborted.
 msgstr Ukázka reverify zrušena.
 
-msgid Do you really want to execute reverify? The operation is **irreversible**! This operation might take a while and the bot might hit rate limit!
-msgstr Opravdu chcete spustit reverifikaci? Opreace je **nevratná**! Tato operace může chvíli trvat a bot může narazit na rate limit!
+msgid Do you really want to execute reverify? The operation is **irreversible**.This operation might take a while and the bot might hit rate limit!
+msgstr Opravdu chcete spustit reverifikaci? Opreace je **nevratná**. Tato operace může chvíli trvat a bot může narazit na rate limit!
 
-msgid Reverify execution aborted.
-msgstr Provedení reverifikace zrušeno.
+msgid Reverification starting...
+msgstr Reverifikace začíná...
 
 msgid [Preview] Member {member} stripped - no mapping found or verification blocked!
 msgstr [Preview] Členovi {member} byla zrušena verifikace - žádné mapování nenalezeno nebo má zablokovanou verifikaci!
@@ -511,20 +499,17 @@ msgstr Role s ID {role_id} nebyla nalezena! Prosím opravte si verifikační pra
 msgid [Preview] Removed roles {removed_roles} and added roles {added_roles} for {member}.
 msgstr [Preview] Odstraněny role {removed_roles} a přidány role {added_roles} pro uživatele {member}.
 
-msgid Reverify confirm
-msgstr Potvrzení reverifikace
+msgid Your user account is already in the database. Check the e-mail inbox or contact the moderator team.
+msgstr Tvůj uživatelský účet už v databázi existuje. Zkontroluj inbox e-mailu nebo kontaktuj moderátory.
 
-msgid {mention} Your user account is already in the database. Check the e-mail inbox or contact the moderator team.
-msgstr {mention} Tvůj uživatelský účet už v databázi existuje. Zkontroluj inbox e-mailu nebo kontaktuj moderátory.
+msgid This e-mail is already in the database registered under different user account. Login with that account and/or contact the moderator team.
+msgstr Tento e-mail je už registrovaný jiným uživatelským účtem. Přihlas se jím a/nebo kontaktuj moderátory.
 
-msgid {mention} This e-mail is already in the database registered under different user account. Login with that account and/or contact the moderator team.
-msgstr {mention} Tento e-mail je už registrovaný jiným uživatelským účtem. Přihlas se jím a/nebo kontaktuj moderátory.
+msgid This e-mail cannot be used.
+msgstr Tento e-mail nejde použít.
 
-msgid {mention} This e-mail cannot be used.
-msgstr {mention} Tento e-mail nejde použít.
-
-msgid Your verification e-mail for Discord server {guild_name} is {code}.
-msgstr Tvůj verifikační e-mail pro Discord server {guild_name} je {code}.
+msgid Your verification code for Discord server {guild_name} is {code}.
+msgstr Tvůj verifikační code pro Discord server {guild_name} je {code}.
 
 msgid You can use it by sending the following message:
 msgstr Můžeš ho použít posláním následující zprávy:
@@ -535,8 +520,8 @@ msgstr {prefix}submit {code}
 msgid to the channel named #{channel}.
 msgstr do kanálu #{channel}.
 
-msgid {mention} An error has occured while sending the code. Contact the moderator team.
-msgstr {mention} Při posílání kódu nastala chyba. Kontaktuj moderátory.
+msgid An error has occured while sending the code. Contact the moderator team.
+msgstr Při posílání kódu nastala chyba. Kontaktuj moderátory.
 
 msgid Could not delete empty voicechannel id {id}.
 msgstr Prázdná hlasový kanál s id {id} nemohl být smazán.
