@@ -795,6 +795,8 @@ class Verify(commands.Cog):
                     domain=domain,
                     rule=rule,
                 )
+                # To keep the bot alive and responding
+                asyncio.sleep(0)
 
         file.close()
         data_file.close()
