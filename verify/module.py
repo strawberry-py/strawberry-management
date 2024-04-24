@@ -408,9 +408,15 @@ class Verify(commands.Cog):
         if answer is not True:
             try:
                 await (await itx.original_response()).edit(_(itx, "Stripping aborted."))
+                return
             except Exception:
                 pass
             return
+
+        try:
+            await view.message.delete()
+        except Exception:
+            pass
 
         itx: discord.Interaction = view.itx
 
