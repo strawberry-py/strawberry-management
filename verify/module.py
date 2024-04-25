@@ -1484,8 +1484,8 @@ class Verify(commands.Cog):
             ).format(guild_name=member.guild.name, code=code),
             _(utx, "You can use it by sending the following message:"),
             "  "
-            + _(utx, "{prefix}submit {code}").format(prefix=config.prefix, code=code),
-            _(utx, "to the channel named #{channel}.").format(channel=channel.name),
+            + _(utx, "/submit {code}").format(code=code),
+            _(utx, "to the channel named #{channel}. Do not copy the command as it might not work.").format(channel=channel.name),
         ]
         clear: str = "\n".join(clear_list)
 

@@ -514,11 +514,11 @@ msgstr Tvůj verifikační code pro Discord server {guild_name} je {code}.
 msgid You can use it by sending the following message:
 msgstr Můžeš ho použít posláním následující zprávy:
 
-msgid {prefix}submit {code}
-msgstr {prefix}submit {code}
+msgid /submit {code}
+msgstr /submit {code}
 
-msgid to the channel named #{channel}.
-msgstr do kanálu #{channel}.
+msgid to the channel named #{channel}. Do not copy the command as it might not work.
+msgstr do kanálu #{channel}. Nekopíruj tento příkaz, nemuselo by to fungovat.
 
 msgid An error has occured while sending the code. Contact the moderator team.
 msgstr Při posílání kódu nastala chyba. Kontaktuj moderátory.

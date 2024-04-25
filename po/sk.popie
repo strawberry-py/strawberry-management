@@ -299,7 +299,7 @@ msgid If I'm wrong and the e-mail is correct, contact the moderator team.
 msgstr Ak sa mýlim a email je správny, kontaktuj moderátorov.
 
 msgid {mention} I could not send the verification code, you've probably made a typo. Invoke the command `/strip` before requesting a new code.
-msgstr Verifikačný kód nemohol byť poslaný, pravdepodobne je v ňom preklep. Použi príkaz `/strip` predtým, ako požiadaš o nový kód.
+msgstr {mention} Verifikačný kód nemohol byť poslaný, pravdepodobne je v ňom preklep. Použi príkaz `/strip` predtým, ako požiadaš o nový kód.
 
 msgid You have to request the code first.
 msgstr Musíš najskôr požiadať o kód.
@@ -514,11 +514,11 @@ msgstr Tvoj verifikačný code pre Discord server {guild_name} je {code}.
 msgid You can use it by sending the following message:
 msgstr Môžeš ho použiť poslaním nasledujúcej správy:
 
-msgid {prefix}submit {code}
-msgstr {prefix}submit {code}
+msgid /submit {code}
+msgstr /submit {code}
 
-msgid to the channel named #{channel}.
-msgstr do kanála #{channel}.
+msgid to the channel named #{channel}. Do not copy the command as it might not work.
+msgstr do kanála #{channel}. Príkaz nekopíruj, pretože nemusí fungovať.
 
 msgid An error has occured while sending the code. Contact the moderator team.
 msgstr Pri posielaní kódu nastala chyba. Kontaktuj moderátorov.
