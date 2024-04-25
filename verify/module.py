@@ -293,7 +293,7 @@ class Verify(commands.Cog):
             await utils.discord.send_dm(itx.user, config_message.message)
 
         with contextlib.suppress(Exception):
-            (await itx.original_response()).delete()
+            await (await itx.original_response()).delete()
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
@@ -338,6 +338,11 @@ class Verify(commands.Cog):
                 content=_(itx, "Stripping aborted."), embed=None
             )
             return
+
+        if not view.itx.response.is_done:
+            await view.itx.response.defer()
+        else:
+            await (await view.itx.original_response()).delete()
 
         roles = [role for role in itx.user.roles if role.is_assignable()]
 
