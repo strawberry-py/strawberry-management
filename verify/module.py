@@ -879,7 +879,7 @@ class Verify(commands.Cog):
             return
 
         if role:
-            rule.add_roles(role.id)
+            rule.add_role(role.id)
 
         await itx.response.send_message(
             _(itx, "Rule with name {name} added!").format(name=name)
@@ -1009,7 +1009,7 @@ class Verify(commands.Cog):
             )
             return
 
-        rule[0].add_roles(role.id)
+        rule[0].add_role(role.id)
 
         await itx.response.send_message(
             _(itx, "Role {role} added to rule {name}!").format(
