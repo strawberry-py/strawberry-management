@@ -330,7 +330,7 @@ class Verify(commands.Cog):
                 ),
             ),
         )
-        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
+        view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=True)
         view.timeout = 90
         answer = await view.send()
         if answer is not True:
@@ -341,8 +341,6 @@ class Verify(commands.Cog):
 
         if not view.itx.response.is_done:
             await view.itx.response.defer()
-        else:
-            await (await view.itx.original_response()).delete()
 
         roles = [role for role in itx.user.roles if role.is_assignable()]
 
