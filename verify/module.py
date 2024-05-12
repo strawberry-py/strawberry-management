@@ -1117,7 +1117,9 @@ class Verify(commands.Cog):
 
         await itx.response.send_message(_(itx, "Reverification starting..."))
 
-        verify_members: List[VerifyMember] = VerifyMember.get(guild_id=itx.guild.id)
+        verify_members: List[VerifyMember] = VerifyMember.get(
+            guild_id=itx.guild.id, status=VerifyStatus.VERIFIED
+        )
 
         stripped_count = 0
         updated_count = 0

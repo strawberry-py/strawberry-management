@@ -514,13 +514,17 @@ class VerifyMember(database.base):
 
     @staticmethod
     def get(
-        guild_id: int, user_id: int = None, address: str = None
+        guild_id: int,
+        user_id: int = None,
+        address: str = None,
+        status: VerifyStatus = None,
     ) -> List[VerifyMember]:
         """Get member.
 
         :param guild_id: Discord ID of the guild.
         :param user_id: Discord user ID (optional)
         :param address: Email address of the user (optional)
+        :param status: Verify status of the users (optional)
         :return: List of VerifyMembers
         """
         query = session.query(VerifyMember).filter_by(guild_id=guild_id)
@@ -531,6 +535,8 @@ class VerifyMember(database.base):
             query = query.filter(
                 func.lower(VerifyMember.address) == func.lower(address)
             )
+        if status:
+            query = query.filter_by(status=status)
 
         return query.all()
 
