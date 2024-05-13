@@ -1061,7 +1061,7 @@ class Verify(commands.Cog):
         dialog = utils.discord.create_embed(
             author=itx.user, title=_(itx, "Reverify confirm"), description=text
         )
-        view = ConfirmView(utx=itx, embed=dialog, delete=False)
+        view = ConfirmView(utx=itx, embed=dialog, delete=True)
         view.timeout = 90
         confirm = await view.send()
         if not confirm:
@@ -1070,7 +1070,7 @@ class Verify(commands.Cog):
             )
             return
 
-        await self._process_reverify(itx, preview=True)
+        await self._process_reverify(view.itx, preview=True)
 
     @check.acl2(check.ACLevel.MOD)
     @verification_reverify.command(
@@ -1089,7 +1089,7 @@ class Verify(commands.Cog):
         dialog = utils.discord.create_embed(
             author=itx.user, title=_(itx, "Reverify confirm"), description=text
         )
-        view = ConfirmView(utx=itx, embed=dialog, delete=False)
+        view = ConfirmView(utx=itx, embed=dialog, delete=True)
         view.timeout = 90
         confirm = await view.send()
         if not confirm:
@@ -1098,7 +1098,7 @@ class Verify(commands.Cog):
             )
             return
 
-        await self._process_reverify(itx, preview=False)
+        await self._process_reverify(view.itx, preview=False)
 
     async def _process_reverify(self, itx: discord.Interaction, preview: bool = True):
         """Helper function to process the reverify.
