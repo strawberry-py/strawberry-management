@@ -436,6 +436,9 @@ msgstr Odstranění zrušeno.
 msgid Mapping successfuly removed.
 msgstr Mapování úspěšně odstraněno.
 
+msgid Mapping for {email} changed to {rule}.
+msgstr Mapování pro {email} změněno na {rule}.
+
 msgid Rule with name {name} already exists!
 msgstr Pravidlo jménem {name} již existuje!
 
