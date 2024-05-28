@@ -864,6 +864,47 @@ class Verify(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
+    @verification_mapping.command(
+        name="edit", description="Add or edit verification mapping."
+    )
+    @app_commands.describe(
+        email="Use `@domain.tld` for domain default or `@` for guild deafult.",
+        rule="Verification rule name.",
+    )
+    async def verification_mapping_edit(
+        self, itx: discord.Interaction, email: str, rule: str
+    ):
+        if "@" not in email or len(email.split("@")) != 2:
+            await itx.response.send_message(
+                _(itx, "Email must contain exactly 1 @ character."), ephemeral=True
+            )
+            return
+
+        parts = email.split("@")
+        username = parts[0]
+        domain = parts[1]
+
+        verify_rule: VerifyRule = VerifyRule.get(guild_id=itx.guild.id, name=rule)
+
+        if len(verify_rule) != 1:
+            await itx.response.send_message(
+                _(itx, "Rule named {name} was not found!").format(name=rule)
+            )
+            return
+
+        VerifyMapping.add(
+            guild_id=itx.guild.id, username=username, domain=domain, rule=verify_rule[0]
+        )
+
+        await itx.response.send_message(
+            _(itx, "Mapping for {email} changed to {rule}.").format(
+                email=email, rule=rule
+            ),
+            ephemeral=True,
+        )
+
+    @app_commands.guild_only()
+    @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(name="add", description="Creates verification rule.")
     @app_commands.describe(name="Name of the rule.", role="First role to add.")
     async def verification_rule_add(

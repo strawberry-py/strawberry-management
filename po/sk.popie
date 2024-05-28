@@ -436,6 +436,9 @@ msgstr
 msgid Mapping successfuly removed.
 msgstr
 
+msgid Mapping for {email} changed to {rule}.
+msgstr
+
 msgid Rule with name {name} already exists!
 msgstr
 
