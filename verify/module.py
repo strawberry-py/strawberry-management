@@ -643,7 +643,7 @@ class Verify(commands.Cog):
     async def verification_update(
         self, itx: discord.Interaction, member: discord.Member, status: VerifyStatus
     ):
-        verify_member = VerifyMember.get(itx.guild.id, user_id=member.id)
+        verify_member = VerifyMember.get(guild_id=itx.guild.id, user_id=member.id)
 
         if not verify_member:
             await itx.response.send_message(
