@@ -286,7 +286,7 @@ class Verify(commands.Cog):
             config_message = VerifyMessage.get_default(itx.guild.id)
         if not config_message:
             await utils.discord.send_dm(
-                itx.author,
+                itx.user,
                 _(itx, "You have been verified, congratulations!"),
             )
         else:
