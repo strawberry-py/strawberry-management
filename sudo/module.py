@@ -9,7 +9,7 @@ from pie import check, i18n, utils
 
 from .objects import MessageModal
 
-_ = i18n.Translator("modules/sudo").translate
+_ = i18n.Translator("modules/mgmt").translate
 
 
 class Sudo(
