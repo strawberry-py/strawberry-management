@@ -201,9 +201,9 @@ class VerifyRule(database.base):
 
         :param role: List of Discord role IDs.
         """
-        for role in self.roles:
+        """for role in self.roles:
             if role.role_id == role:
-                return
+                return"""
 
         role = VerifyRole(rule_id=self.idx, role_id=role, guild_id=self.guild_id)
         session.add(role)
