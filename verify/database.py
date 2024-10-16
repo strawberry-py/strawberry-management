@@ -196,16 +196,16 @@ class VerifyRule(database.base):
 
         return rule
 
-    def add_role(self, role: int):
+    def add_role(self, role_id: int):
         """Add Discord role to the rule. Skips existing role.
 
         :param role: List of Discord role IDs.
         """
         for role in self.roles:
-            if role.role_id == role:
+            if role.role_id == role_id:
                 return
 
-        self.roles.append(VerifyRole(role_id=role, guild_id=self.guild_id))
+        self.roles.append(VerifyRole(role_id=role_id, guild_id=self.guild_id))
 
         session.commit()
 
