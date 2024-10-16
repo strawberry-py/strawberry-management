@@ -205,9 +205,7 @@ class VerifyRule(database.base):
             if role.role_id == role:
                 return
 
-        role = VerifyRole(role_id=role, guild_id=self.guild_id, rule_id=self.idx)
-
-        session.add(role)
+        self.roles.append(VerifyRole(role_id=role, guild_id=self.guild_id))
 
         session.commit()
 
@@ -226,12 +224,12 @@ class VerifyRule(database.base):
         session.delete(self)
         session.commit()
 
-    def __repr__(self) -> str:
+    """def __repr__(self) -> str:
         return (
             f'<VerifyRule idx="{self.idx}" name="{self.name}" '
             f'guild_id="{self.guild_id}" roles="{self.roles}" '
             f'message="{self.message}">'
-        )
+        )"""
 
     def dump(self) -> dict:
         return {
@@ -272,12 +270,12 @@ class VerifyRole(database.base):
         session.delete(self)
         session.commit()
 
-    def __repr__(self) -> str:
+    """def __repr__(self) -> str:
         return (
             f'<VerifyRole rule_id="{self.rule_id}" '
             f'role_id="{self.role_id}" guild_id="{self.guild_id}" '
             f'rule="{self.rule}">'
-        )
+        )"""
 
     def dump(self) -> dict:
         return {
