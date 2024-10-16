@@ -205,7 +205,7 @@ class VerifyRule(database.base):
             if role.role_id == role_id:
                 return
 
-        self.roles.append(VerifyRole(role_id=role, guild_id=self.guild_id))
+        self.roles.append(VerifyRole(role_id=role_id, guild_id=self.guild_id))
 
         session.commit()
 
