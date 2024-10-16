@@ -196,16 +196,16 @@ class VerifyRule(database.base):
 
         return rule
 
-    def add_role(self, role: int):
+    def add_role(self, role_id: int):
         """Add Discord role to the rule. Skips existing role.
 
         :param role: List of Discord role IDs.
         """
-        """for role in self.roles:
-            if role.role_id == role:
-                return"""
+        for role in self.roles:
+            if role.role_id == role_id:
+                return
 
-        role = VerifyRole(rule_id=self.idx, role_id=role, guild_id=self.guild_id)
+        role = VerifyRole(rule_id=self.idx, role_id=role_id, guild_id=self.guild_id)
         session.add(role)
 
         session.commit()
@@ -225,12 +225,12 @@ class VerifyRule(database.base):
         session.delete(self)
         session.commit()
 
-    """def __repr__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f'<VerifyRule idx="{self.idx}" name="{self.name}" '
             f'guild_id="{self.guild_id}" roles="{self.roles}" '
             f'message="{self.message}">'
-        )"""
+        )
 
     def dump(self) -> dict:
         return {
@@ -271,12 +271,12 @@ class VerifyRole(database.base):
         session.delete(self)
         session.commit()
 
-    """def __repr__(self) -> str:
+    def __repr__(self) -> str:
         return (
             f'<VerifyRole rule_id="{self.rule_id}" '
             f'role_id="{self.role_id}" guild_id="{self.guild_id}" '
             f'rule="{self.rule}">'
-        )"""
+        )
 
     def dump(self) -> dict:
         return {
