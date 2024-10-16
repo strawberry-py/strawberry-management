@@ -225,12 +225,12 @@ class VerifyRule(database.base):
         session.delete(self)
         session.commit()
 
-    def __repr__(self) -> str:
+    """def __repr__(self) -> str:
         return (
             f'<VerifyRule idx="{self.idx}" name="{self.name}" '
             f'guild_id="{self.guild_id}" roles="{self.roles}" '
             f'message="{self.message}">'
-        )
+        )"""
 
     def dump(self) -> dict:
         return {
@@ -260,7 +260,7 @@ class VerifyRole(database.base):
     )
     role_id = Column(BigInteger, primary_key=True)
     guild_id = Column(BigInteger)
-    #rule = relationship(lambda: VerifyRule, back_populates="roles")
+    rule = relationship(lambda: VerifyRule, back_populates="roles")
 
     def get(guild_id: int) -> List[VerifyRole]:
         query = session.query(VerifyRole).filter_by(guild_id=guild_id)
@@ -271,12 +271,12 @@ class VerifyRole(database.base):
         session.delete(self)
         session.commit()
 
-    def __repr__(self) -> str:
+    """def __repr__(self) -> str:
         return (
             f'<VerifyRole rule_id="{self.rule_id}" '
             f'role_id="{self.role_id}" guild_id="{self.guild_id}" '
             f'rule="{self.rule}">'
-        )
+        )"""
 
     def dump(self) -> dict:
         return {
