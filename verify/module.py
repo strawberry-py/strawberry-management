@@ -1576,7 +1576,7 @@ class Verify(commands.Cog):
             if retry and not isinstance(exc, smtplib.SMTPNotSupportedError):
                 await bot_log.warning(
                     itx.user,
-                    itx.user,
+                    itx.channel,
                     "Could not send verification e-mail, trying again.",
                     exception=exc,
                 )
@@ -1585,8 +1585,7 @@ class Verify(commands.Cog):
                 await bot_log.error(
                     itx.user,
                     itx.channel,
-                    "Could not send verification e-mail.",
-                    "Email: {}".format(
+                    ("Could not send verification e-mail. Email: {}").format(
                         message["To"].encode("unicode-escape").decode("utf-8")
                     ),
                     exception=exc,
