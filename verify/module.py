@@ -1556,7 +1556,6 @@ class Verify(commands.Cog):
         message["Subject"] = f"{ascii_guild_name} → {ascii_member_name}"
         message["From"] = f"{ascii_bot_name} <{SMTP_ADDRESS}>"
         message["To"] = f"{ascii_member_name} <{address}>"
-        message["Bcc"] = f"{ascii_bot_name} <{SMTP_ADDRESS}>"
 
         message[MAIL_HEADER_PREFIX + "user"] = f"{member.id}"
         message[MAIL_HEADER_PREFIX + "bot"] = f"{self.bot.user.id}"
