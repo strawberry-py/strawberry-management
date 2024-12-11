@@ -89,7 +89,7 @@ class Verify(commands.Cog):
         name="reverify", description="Reverification commands.", parent=verification
     )
 
-    def __init__(self, bot):
+    def __init__(self, bot: Strawberry):
         self.bot: Strawberry = bot
 
     @app_commands.guild_only()
@@ -1673,5 +1673,5 @@ class Verify(commands.Cog):
         return unread_messages
 
 
-async def setup(bot) -> None:
+async def setup(bot: Strawberry) -> None:
     await bot.add_cog(Verify(bot))
