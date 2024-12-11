@@ -218,7 +218,7 @@ class Verify(commands.Cog):
         await (await itx.original_response()).edit(
             content=_(
                 itx,
-                ("I've sent you the verification code " "to the submitted e-mail."),
+                ("I've sent you the verification code to the submitted e-mail."),
             )
         )
 
