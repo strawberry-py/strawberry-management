@@ -3,13 +3,13 @@ import contextlib
 import csv
 import os
 import random
-import smtplib
 import string
 import tempfile
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional, Union
 
+import aiosmtplib
 import imap_tools
 import unidecode
 
@@ -43,6 +43,12 @@ SMTP_SERVER: str = os.getenv("SMTP_SERVER")
 IMAP_SERVER: str = os.getenv("IMAP_SERVER")
 SMTP_ADDRESS: str = os.getenv("SMTP_ADDRESS")
 SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
+SMTP_TLS: bool = os.getenv("SMTP_TLS", "True").lower() != "false"
+
+try:
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "465"))
+except ValueError:
+    raise exceptions.DotEnvException("SMTP_PORT must be numeber.")
 
 
 def test_dotenv() -> None:
@@ -1567,13 +1573,21 @@ class Verify(commands.Cog):
     ) -> None:
         """Send the verification e-mail."""
         try:
-            with smtplib.SMTP_SSL(SMTP_SERVER) as server:
-                server.ehlo()
-                server.login(SMTP_ADDRESS, SMTP_PASSWORD)
-                server.send_message(message)
-                return True
-        except (smtplib.SMTPException, smtplib.SMTPNotSupportedError) as exc:
-            if retry and not isinstance(exc, smtplib.SMTPNotSupportedError):
+            async with aiosmtplib.SMTP(
+                hostname=SMTP_SERVER,
+                port=SMTP_PORT,
+                use_tls=SMTP_TLS,
+                username=SMTP_ADDRESS,
+                password=SMTP_PASSWORD,
+            ) as server:
+                await server.ehlo()
+                await server.send_message(message)
+            return True
+        except (
+            aiosmtplib.errors.SMTPException,
+            aiosmtplib.errors.SMTPNotSupported,
+        ) as exc:
+            if retry and not isinstance(exc, aiosmtplib.SMTPNotSupported):
                 await bot_log.warning(
                     itx.user,
                     itx.channel,
