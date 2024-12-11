@@ -15,7 +15,7 @@ import unidecode
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import pie.database.config
 from pie import check, exceptions, i18n, logger, storage, utils
@@ -97,6 +97,77 @@ class Verify(commands.Cog):
 
     def __init__(self, bot: Strawberry):
         self.bot: Strawberry = bot
+        self.bounce_check.start()
+
+    def cog_unload(self):
+        self.bounce_check.cancel()
+
+    # Tasks
+
+    @tasks.loop(seconds=60.0)
+    async def bounce_check(self):
+        """Periodically connect to IMAP server and check for undelivered mail.
+        If such e-mails are found, they will be logged and user will be contacted.
+        """
+        # TODO Use embeds
+        unread_messages = self._check_inbox_for_errors()
+        for message in unread_messages:
+            guild: discord.Guild = self.bot.get_guild(int(message["guild"]))
+            user: discord.Member = self.bot.get_user(int(message["user"]))
+            channel: discord.TextChannel = guild.get_channel(int(message["channel"]))
+
+            if guild is None or user is None:
+                continue
+
+            db_users: list[VerifyMember] = VerifyMember.get(
+                guild_id=guild.id, user_id=user.id, status=VerifyStatus.PENDING
+            )
+            db_user = db_users[0] if len(db_users) == 1 else None
+
+            if not db_user:
+                continue
+
+            utx = i18n.TranslationContext(guild_id=guild.id, user_id=user.id)
+            await guild_log.warning(
+                user,
+                channel if channel else guild.text_channels[0],
+                "Could not deliver verification code: "
+                f"{message['subject']} (User ID {message['user']})",
+            )
+
+            error_msg: str = (
+                _(
+                    utx,
+                    (
+                        "I could not send the verification code, you've probably made "
+                        "a typo{address_part}. Invoke the command `/strip` "
+                        "before requesting a new code."
+                    ),
+                )
+                + "\n\n"
+                + _(
+                    utx,
+                    "If I'm wrong and the e-mail is correct, contact the moderator team.",
+                )
+            )
+            if (
+                not await utils.discord.send_dm(
+                    user,
+                    error_msg.format(address_part=f": `{db_user.address}`"),
+                )
+                and channel
+            ):
+                await channel.send(
+                    f"{user.mention} {error_msg}",
+                    delete_after=60,
+                )
+
+    @bounce_check.before_loop
+    async def before_bounce_check(self):
+        print("Verify bounce check loop waiting until ready().")
+        await self.bot.wait_until_ready()
+
+    # Commands
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
@@ -150,64 +221,6 @@ class Verify(commands.Cog):
                 ("I've sent you the verification code " "to the submitted e-mail."),
             )
         )
-
-        await self.post_verify(itx, address)
-
-    async def post_verify(self, itx: discord.Interaction, address: str):
-        """Wait some time after the user requested verification code.
-
-        Then connect to IMAP server and check for possilibity that they used
-        wrong, invalid e-mail. If such e-mails are found, they will be logged.
-
-        :param address: User's e-mail address.
-        """
-        # TODO Use embeds
-        await asyncio.sleep(20)
-        unread_messages = self._check_inbox_for_errors()
-        for message in unread_messages:
-            guild: discord.Guild = self.bot.get_guild(int(message["guild"]))
-            user: discord.Member = self.bot.get_user(int(message["user"]))
-            channel: discord.TextChannel = guild.get_channel(int(message["channel"]))
-            await guild_log.warning(
-                user,
-                channel,
-                "Could not deliver verification code: "
-                f"{message['subject']} (User ID {message['user']})",
-            )
-
-            error_private: str = _(
-                itx,
-                (
-                    "I could not send the verification code, you've probably made "
-                    "a typo: `{address}`. Invoke the command `/strip` "
-                    "before requesting a new code."
-                ),
-            ).format(address=address)
-            error_epilog: str = _(
-                itx,
-                (
-                    "If I'm wrong and the e-mail is correct, "
-                    "contact the moderator team."
-                ),
-            )
-            if not await utils.discord.send_dm(
-                itx.user,
-                error_private + "\n" + error_epilog,
-            ):
-                error_public: str = (
-                    _(
-                        itx,
-                        (
-                            "{mention} I could not send the verification code, you've probably made "
-                            "a typo. Invoke the command `/strip` "
-                            "before requesting a new code."
-                        ),
-                    ).format(mention=itx.user.mention),
-                )
-                await itx.channel.send(
-                    error_public + "\n" + error_epilog,
-                    delete_after=60,
-                )
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
@@ -1635,8 +1648,8 @@ class Verify(commands.Cog):
     def _check_inbox_for_errors(self):
         """Connect to the IMAP server and fetch unread e-mails.
 
-        If the message contains verification headers, it will be returned as
-        dictionary containing those headers.
+        Returns list of all unread messages info containing delivery-status header
+        if the body contains MAIL_HEADER_PREFIX (X-strawberry.py-).
         """
         unread_messages = []
 
@@ -1647,10 +1660,9 @@ class Verify(commands.Cog):
                 m
                 for m in mailbox.fetch(
                     imap_tools.AND(seen=False),
-                    mark_seen=False,
+                    mark_seen=True,
                 )
             ]
-            mark_as_read: List = []
 
             for m in messages:
                 has_delivery_status: bool = False
@@ -1673,16 +1685,8 @@ class Verify(commands.Cog):
                 if not info:
                     continue
 
-                mark_as_read.append(m)
                 info["subject"] = m.subject
                 unread_messages.append(info)
-
-            mailbox.flag(
-                [m.uid for m in mark_as_read],
-                (imap_tools.MailMessageFlags.SEEN,),
-                True,
-            )
-
         return unread_messages
 
 

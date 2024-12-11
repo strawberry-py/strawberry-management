@@ -289,17 +289,14 @@ msgstr Roly na vrátenie
 msgid Channels to return
 msgstr Kanály na vrátenie
 
-msgid I've sent you the verification code to the submitted e-mail.
-msgstr Na zadaný email ti bol poslaný verifikačný kód.
-
-msgid I could not send the verification code, you've probably made a typo: `{address}`. Invoke the command `/strip` before requesting a new code.
-msgstr Verifikačný kód nemohol byť poslaný, pravdepodobne je v ňom preklep: `{address}`. Použi príkaz `/strip` predtým, ako požiadaš o nový kód.
+msgid I could not send the verification code, you've probably made a typo{address_part}. Invoke the command `/strip` before requesting a new code.
+msgstr Verifikačný kód nemohol byť poslaný, pravdepodobne je v ňom preklep{address_part}. Použi príkaz `/strip` predtým, ako požiadaš o nový kód.
 
 msgid If I'm wrong and the e-mail is correct, contact the moderator team.
 msgstr Ak sa mýlim a email je správny, kontaktuj moderátorov.
 
-msgid {mention} I could not send the verification code, you've probably made a typo. Invoke the command `/strip` before requesting a new code.
-msgstr {mention} Verifikačný kód nemohol byť poslaný, pravdepodobne je v ňom preklep. Použi príkaz `/strip` predtým, ako požiadaš o nový kód.
+msgid I've sent you the verification code to the submitted e-mail.
+msgstr Na zadaný email ti bol poslaný verifikačný kód.
 
 msgid You have to request the code first.
 msgstr Musíš najskôr požiadať o kód.
