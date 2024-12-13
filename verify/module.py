@@ -47,7 +47,7 @@ SMTP_TLS: bool = os.getenv("SMTP_TLS", "True").lower() != "false"
 
 try:
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "465"))
-except ValueError:
+except (ValueError, TypeError):
     raise exceptions.DotEnvException("SMTP_PORT must be numeber.")
 
 
