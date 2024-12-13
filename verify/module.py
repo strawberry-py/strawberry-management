@@ -140,7 +140,7 @@ class Verify(commands.Cog):
                     utx,
                     (
                         "I could not send the verification code, you've probably made "
-                        "a typo{address_part}. Invoke the command `/strip` "
+                        "a typo: `{address_part}`. Invoke the command `/strip` "
                         "before requesting a new code."
                     ),
                 )
@@ -153,12 +153,12 @@ class Verify(commands.Cog):
             if (
                 not await utils.discord.send_dm(
                     user,
-                    error_msg.format(address_part=f": `{db_user.address}`"),
+                    error_msg.format(address_part=db_user.address),
                 )
                 and channel
             ):
                 await channel.send(
-                    f"{user.mention} {error_msg}",
+                    f"{user.mention} {error_msg}".format(address_part="anonymized"),
                     delete_after=60,
                 )
 

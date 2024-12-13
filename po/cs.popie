@@ -289,8 +289,8 @@ msgstr Role k navrácení
 msgid Channels to return
 msgstr Kanály k navrácení
 
-msgid I could not send the verification code, you've probably made a typo{address_part}. Invoke the command `/strip` before requesting a new code.
-msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně máš překlep v adrese{address_part}. Použij příkaz `/strip` předtím, než zažádáš o nový kód.
+msgid I could not send the verification code, you've probably made a typo: `{address_part}`. Invoke the command `/strip` before requesting a new code.
+msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně máš překlep v adrese: `{address_part}`. Použij příkaz `/strip` předtím, než zažádáš o nový kód.
 
 msgid If I'm wrong and the e-mail is correct, contact the moderator team.
 msgstr Pokud se pletu a e-mail je správný, kontaktuj moderátory.
