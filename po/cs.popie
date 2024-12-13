@@ -295,6 +295,9 @@ msgstr Nemohl ti být zaslán verifikační kód, pravděpodobně máš překlep
 msgid If I'm wrong and the e-mail is correct, contact the moderator team.
 msgstr Pokud se pletu a e-mail je správný, kontaktuj moderátory.
 
+msgid (anonymized)
+msgstr (anonymizované()
+
 msgid I've sent you the verification code to the submitted e-mail.
 msgstr Na zadaný e-mail ti byl poslán verifikační kód.
 

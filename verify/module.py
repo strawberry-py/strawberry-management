@@ -158,7 +158,9 @@ class Verify(commands.Cog):
                 and channel
             ):
                 await channel.send(
-                    f"{user.mention} {error_msg}".format(address_part="anonymized"),
+                    f"{user.mention} {error_msg}".format(
+                        address_part=_(utx, "(anonymized)")
+                    ),
                     delete_after=60,
                 )
 
