@@ -1666,10 +1666,10 @@ class Verify(commands.Cog):
                 )
             ]
 
-            for m in messages:
+            for message in messages:
                 has_delivery_status: bool = False
 
-                for part in m.obj.walk():
+                for part in message.obj.walk():
                     if part.get_content_type() == "message/delivery-status":
                         has_delivery_status = True
                         break
@@ -1677,7 +1677,7 @@ class Verify(commands.Cog):
                 if not has_delivery_status:
                     continue
 
-                rfc_message = m.obj.as_string()
+                rfc_message = message.obj.as_string()
                 info: dict = {}
 
                 for line in rfc_message.split("\n"):
@@ -1687,7 +1687,7 @@ class Verify(commands.Cog):
                 if not info:
                     continue
 
-                info["subject"] = m.subject
+                info["subject"] = message.subject
                 unread_messages.append(info)
         return unread_messages
 
