@@ -3,19 +3,19 @@ import contextlib
 import csv
 import os
 import random
-import smtplib
 import string
 import tempfile
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import List, Optional, Union
 
+import aiosmtplib
 import imap_tools
 import unidecode
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 import pie.database.config
 from pie import check, exceptions, i18n, logger, storage, utils
@@ -43,6 +43,12 @@ SMTP_SERVER: str = os.getenv("SMTP_SERVER")
 IMAP_SERVER: str = os.getenv("IMAP_SERVER")
 SMTP_ADDRESS: str = os.getenv("SMTP_ADDRESS")
 SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD")
+SMTP_TLS: bool = os.getenv("SMTP_TLS", "True").lower() != "false"
+
+try:
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "465"))
+except (ValueError, TypeError):
+    raise exceptions.DotEnvException("SMTP_PORT must be numeber.")
 
 
 def test_dotenv() -> None:
@@ -89,8 +95,81 @@ class Verify(commands.Cog):
         name="reverify", description="Reverification commands.", parent=verification
     )
 
-    def __init__(self, bot):
+    def __init__(self, bot: Strawberry):
         self.bot: Strawberry = bot
+        self.bounce_check.start()
+
+    def cog_unload(self):
+        self.bounce_check.cancel()
+
+    # Tasks
+
+    @tasks.loop(seconds=60.0)
+    async def bounce_check(self):
+        """Periodically connect to IMAP server and check for undelivered mail.
+        If such e-mails are found, they will be logged and user will be contacted.
+        """
+        # TODO Use embeds
+        unread_messages = self._check_inbox_for_errors()
+        for message in unread_messages:
+            guild: discord.Guild = self.bot.get_guild(int(message["guild"]))
+            user: discord.Member = self.bot.get_user(int(message["user"]))
+            channel: discord.TextChannel = guild.get_channel(int(message["channel"]))
+
+            if guild is None or user is None:
+                continue
+
+            db_users: list[VerifyMember] = VerifyMember.get(
+                guild_id=guild.id, user_id=user.id, status=VerifyStatus.PENDING
+            )
+            db_user = db_users[0] if len(db_users) == 1 else None
+
+            if not db_user:
+                continue
+
+            utx = i18n.TranslationContext(guild_id=guild.id, user_id=user.id)
+            await guild_log.warning(
+                user,
+                channel if channel else guild.text_channels[0],
+                "Could not deliver verification code: "
+                f"{message['subject']} (User ID {message['user']})",
+            )
+
+            error_msg: str = (
+                _(
+                    utx,
+                    (
+                        "I could not send the verification code, you've probably made "
+                        "a typo: `{address_part}`. Invoke the command `/strip` "
+                        "before requesting a new code."
+                    ),
+                )
+                + "\n\n"
+                + _(
+                    utx,
+                    "If I'm wrong and the e-mail is correct, contact the moderator team.",
+                )
+            )
+            if (
+                not await utils.discord.send_dm(
+                    user,
+                    error_msg.format(address_part=db_user.address),
+                )
+                and channel
+            ):
+                await channel.send(
+                    f"{user.mention} {error_msg}".format(
+                        address_part=_(utx, "(anonymized)")
+                    ),
+                    delete_after=60,
+                )
+
+    @bounce_check.before_loop
+    async def before_bounce_check(self):
+        print("Verify bounce check loop waiting until ready().")
+        await self.bot.wait_until_ready()
+
+    # Commands
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
@@ -141,67 +220,9 @@ class Verify(commands.Cog):
         await (await itx.original_response()).edit(
             content=_(
                 itx,
-                ("I've sent you the verification code " "to the submitted e-mail."),
+                ("I've sent you the verification code to the submitted e-mail."),
             )
         )
-
-        await self.post_verify(itx, address)
-
-    async def post_verify(self, itx: discord.Interaction, address: str):
-        """Wait some time after the user requested verification code.
-
-        Then connect to IMAP server and check for possilibity that they used
-        wrong, invalid e-mail. If such e-mails are found, they will be logged.
-
-        :param address: User's e-mail address.
-        """
-        # TODO Use embeds
-        await asyncio.sleep(20)
-        unread_messages = self._check_inbox_for_errors()
-        for message in unread_messages:
-            guild: discord.Guild = self.bot.get_guild(int(message["guild"]))
-            user: discord.Member = self.bot.get_user(int(message["user"]))
-            channel: discord.TextChannel = guild.get_channel(int(message["channel"]))
-            await guild_log.warning(
-                user,
-                channel,
-                "Could not deliver verification code: "
-                f"{message['subject']} (User ID {message['user']})",
-            )
-
-            error_private: str = _(
-                itx,
-                (
-                    "I could not send the verification code, you've probably made "
-                    "a typo: `{address}`. Invoke the command `/strip` "
-                    "before requesting a new code."
-                ),
-            ).format(address=address)
-            error_epilog: str = _(
-                itx,
-                (
-                    "If I'm wrong and the e-mail is correct, "
-                    "contact the moderator team."
-                ),
-            )
-            if not await utils.discord.send_dm(
-                itx.user,
-                error_private + "\n" + error_epilog,
-            ):
-                error_public: str = (
-                    _(
-                        itx,
-                        (
-                            "{mention} I could not send the verification code, you've probably made "
-                            "a typo. Invoke the command `/strip` "
-                            "before requesting a new code."
-                        ),
-                    ).format(mention=itx.user.mention),
-                )
-                await itx.channel.send(
-                    error_public + "\n" + error_epilog,
-                    delete_after=60,
-                )
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.EVERYONE)
@@ -1550,7 +1571,6 @@ class Verify(commands.Cog):
         message["Subject"] = f"{ascii_guild_name} → {ascii_member_name}"
         message["From"] = f"{ascii_bot_name} <{SMTP_ADDRESS}>"
         message["To"] = f"{ascii_member_name} <{address}>"
-        message["Bcc"] = f"{ascii_bot_name} <{SMTP_ADDRESS}>"
 
         message[MAIL_HEADER_PREFIX + "user"] = f"{member.id}"
         message[MAIL_HEADER_PREFIX + "bot"] = f"{self.bot.user.id}"
@@ -1567,13 +1587,21 @@ class Verify(commands.Cog):
     ) -> None:
         """Send the verification e-mail."""
         try:
-            with smtplib.SMTP_SSL(SMTP_SERVER) as server:
-                server.ehlo()
-                server.login(SMTP_ADDRESS, SMTP_PASSWORD)
-                server.send_message(message)
-                return True
-        except (smtplib.SMTPException, smtplib.SMTPNotSupportedError) as exc:
-            if retry and not isinstance(exc, smtplib.SMTPNotSupportedError):
+            async with aiosmtplib.SMTP(
+                hostname=SMTP_SERVER,
+                port=SMTP_PORT,
+                use_tls=SMTP_TLS,
+                username=SMTP_ADDRESS,
+                password=SMTP_PASSWORD,
+            ) as server:
+                await server.ehlo()
+                await server.send_message(message)
+            return True
+        except (
+            aiosmtplib.errors.SMTPException,
+            aiosmtplib.errors.SMTPNotSupported,
+        ) as exc:
+            if retry and not isinstance(exc, aiosmtplib.SMTPNotSupported):
                 await bot_log.warning(
                     itx.user,
                     itx.channel,
@@ -1622,8 +1650,8 @@ class Verify(commands.Cog):
     def _check_inbox_for_errors(self):
         """Connect to the IMAP server and fetch unread e-mails.
 
-        If the message contains verification headers, it will be returned as
-        dictionary containing those headers.
+        Returns list of all unread messages info containing delivery-status header
+        if the body contains MAIL_HEADER_PREFIX (X-strawberry.py-).
         """
         unread_messages = []
 
@@ -1634,15 +1662,14 @@ class Verify(commands.Cog):
                 m
                 for m in mailbox.fetch(
                     imap_tools.AND(seen=False),
-                    mark_seen=False,
+                    mark_seen=True,
                 )
             ]
-            mark_as_read: List = []
 
-            for m in messages:
+            for message in messages:
                 has_delivery_status: bool = False
 
-                for part in m.obj.walk():
+                for part in message.obj.walk():
                     if part.get_content_type() == "message/delivery-status":
                         has_delivery_status = True
                         break
@@ -1650,7 +1677,7 @@ class Verify(commands.Cog):
                 if not has_delivery_status:
                     continue
 
-                rfc_message = m.obj.as_string()
+                rfc_message = message.obj.as_string()
                 info: dict = {}
 
                 for line in rfc_message.split("\n"):
@@ -1660,18 +1687,10 @@ class Verify(commands.Cog):
                 if not info:
                     continue
 
-                mark_as_read.append(m)
-                info["subject"] = m.subject
+                info["subject"] = message.subject
                 unread_messages.append(info)
-
-            mailbox.flag(
-                [m.uid for m in mark_as_read],
-                (imap_tools.MailMessageFlags.SEEN,),
-                True,
-            )
-
         return unread_messages
 
 
-async def setup(bot) -> None:
+async def setup(bot: Strawberry) -> None:
     await bot.add_cog(Verify(bot))
