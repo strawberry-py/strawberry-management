@@ -412,7 +412,7 @@ class Verify(commands.Cog):
         description="Remove roles from the users and set's verify status to None. User is not notified about this.",
     )
     async def verification_groupstrip(
-        self, itx: discord.Interaction, member: discord.Member
+        self, itx: discord.Interaction, user: discord.User
     ):
         dialog = utils.discord.create_embed(
             author=itx.user,
@@ -420,11 +420,11 @@ class Verify(commands.Cog):
             description=_(
                 itx,
                 (
-                    "**{member}** will lose all their roles and their "
+                    "**{user}** will lose all their roles and their "
                     "verification will be revoked. They will not be notified about this. "
                     "Do you want to continue?"
                 ),
-            ).format(member=member.name),
+            ).format(user=user.name),
         )
         view = ConfirmView(utx=itx, embed=dialog, ephemeral=True, delete=False)
         view.timeout = 90
@@ -446,12 +446,13 @@ class Verify(commands.Cog):
 
         await itx.response.defer(thinking=True, ephemeral=True)
 
-        db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=member.id)
+        db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=user.id)
         if db_members:
             db_member = db_members[0]
             db_member.delete()
 
-        if len(getattr(member, "roles", [])) > 1:
+        member: Optional[discord.Member] = itx.guild.get_member(user.id)
+        if member and len(getattr(member, "roles", [])) > 1:
             roles = [role for role in member.roles if role.is_assignable()]
             with contextlib.suppress(discord.Forbidden):
                 await member.remove_roles(*roles, reason="groupstrip")
@@ -459,14 +460,14 @@ class Verify(commands.Cog):
         await (await itx.original_response()).edit(
             content=_(
                 itx,
-                "Member **{member}** ({member_id}) stripped.",
-            ).format(member=member.name, member_id=member.id)
+                "User **{user}** ({user_id}) stripped.",
+            ).format(user=user.name, user_id=user.id)
         )
         await guild_log.warning(
             itx.user,
             itx.channel,
-            "User {member} ({member_id}) removed from database and group stripped.".format(
-                member=member.name, member_id=member.id
+            "User {user} ({user_id}) removed from database and group stripped.".format(
+                user=user.name, user_id=user.id
             ),
         )
 
