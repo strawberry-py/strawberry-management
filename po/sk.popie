@@ -340,11 +340,11 @@ msgstr msgstr Anonymizácia je **VYPNUT8**. E-maily sa zobrazia v logu.
 msgid Group strip
 msgstr
 
-msgid **{member}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
-msgstr **{member}** stratí všetky svoje role a jeho overenie bude zrušené. Nebude o tom informován. Chceš pokračovať?
+msgid **{user}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
+msgstr **{user}** stratí všetky svoje role a jeho overenie bude zrušené. Nebude o tom informován. Chceš pokračovať?
 
-msgid Member **{member}** ({member_id}) stripped.
-msgstr Overenie uživateľa **{member} ({member_id}) bolo zrušené.
+msgid User **{user}** ({user_id}) stripped.
+msgstr Overenie uživateľa **{user} ({user_id}) bolo zrušené.
 
 msgid Role based strip
 msgstr

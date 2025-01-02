@@ -340,11 +340,11 @@ msgstr Anonymizace je **VYPNUTA**. Emailové adresy se objeví v logu.
 msgid Group strip
 msgstr Hromadný reset rolí
 
-msgid **{member}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
-msgstr Uživatel **{member}** ztratí své role a jeho verifikace bude zrušena. Nebude o tomto kroku informován. Pokračovat?
+msgid **{user}** will lose all their roles and their verification will be revoked. They will not be notified about this. Do you want to continue?
+msgstr Uživatel **{user}** ztratí své role a jeho verifikace bude zrušena. Nebude o tomto kroku informován. Pokračovat?
 
-msgid Member **{member}** ({member_id}) stripped.
-msgstr Role uživatele **{member}** ({member_id}) odebrány.
+msgid User **{user}** ({user_id}) stripped.
+msgstr Role uživatele **{user}** ({user_id}) odebrány.
 
 msgid Role based strip
 msgstr Reset verifikace podle rolí
