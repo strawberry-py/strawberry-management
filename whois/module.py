@@ -5,14 +5,8 @@ from discord.ext import commands
 
 from pie import check, i18n, logger, utils
 
-try:
-    from pie.acl.database import ACL_group
-except Exception:
-    ACL_group = None
-try:
-    from pie.acl.database import ACLevelMappping
-except Exception:
-    ACLevelMappping = None
+from pie.acl.database import ACLevelMappping
+
 from ..verify.database import VerifyMember
 
 _ = i18n.Translator("modules/mgmt").translate
@@ -28,16 +22,7 @@ class Whois(commands.Cog):
     @commands.command()
     async def roleinfo(self, ctx, role: discord.Role):
         """Display role information."""
-        if ACL_group is not None:
-            acl_group: Optional[ACL_group] = ACL_group.get_by_role(
-                guild_id=ctx.guild.id, role_id=role.id
-            )
-        else:
-            acl_group = None
-        if ACLevelMappping is not None:
-            acl_mapping = ACLevelMappping.get(ctx.guild.id, role.id)
-        else:
-            acl_mapping = None
+        acl_mapping = ACLevelMappping.get(ctx.guild.id, role.id)
 
         embed = utils.discord.create_embed(
             author=ctx.author,
@@ -52,11 +37,6 @@ class Whois(commands.Cog):
             name=_(ctx, "Taggable"),
             value=_(ctx, "Yes") if role.mentionable else _(ctx, "No"),
         )
-        if acl_group is not None:
-            embed.add_field(
-                name=_(ctx, "ACL group"),
-                value=acl_group.name,
-            )
         if acl_mapping is not None:
             embed.add_field(
                 name=_(ctx, "Mapping to ACLevel"),
