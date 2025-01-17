@@ -142,6 +142,13 @@ class Whois(commands.Cog):
         db_member: VerifyMember,
         dc_member: Optional[discord.Member],
     ):
+        """Function that creates an embed about member and
+        sends it as response to the interaction.
+
+        :param itx: Interaction context
+        :param db_member: Member info from database
+        :param dc_member: Discord member
+        """
         description: str
         if dc_member is not None:
             description = f"{dc_member.name} ({dc_member.id})"
