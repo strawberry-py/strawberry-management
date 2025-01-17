@@ -51,7 +51,7 @@ class Whois(commands.Cog):
     @app_commands.command(
         name="channelinfo", description="Display channel information."
     )
-    @app_commands.describe(channel="Channel to invetigate.")
+    @app_commands.describe(channel="Channel to investigate.")
     async def channelinfo(self, itx: discord.Interaction, channel: discord.TextChannel):
         if itx.user not in channel.members:
             await itx.response.send_message(
