@@ -20,6 +20,7 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
+    @app_commands.default_permissions()
     @app_commands.command(name="roleinfo", description="Display role information.")
     @app_commands.describe(role="Role to investigate.")
     async def roleinfo(self, itx: discord.Interaction, role: discord.Role):
@@ -48,6 +49,7 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
+    @app_commands.default_permissions()
     @app_commands.command(
         name="channelinfo", description="Display channel information."
     )
@@ -97,6 +99,7 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
+    @app_commands.default_permissions()
     @app_commands.command(name="whois", description="See database info on member.")
     @app_commands.describe(user="Member to investigate.")
     async def whois(self, itx: discord.Interaction, user: discord.User):
@@ -118,6 +121,7 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
+    @app_commands.default_permissions()
     @app_commands.command(name="rwhois", description="See databse info on email")
     @app_commands.describe(address="Email to investigate")
     async def rwhois(self, itx: discord.Interaction, address: str):
