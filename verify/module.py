@@ -73,6 +73,7 @@ class Verify(commands.Cog):
         name="verification",
         description="Verification administration and management.",
         default_permissions=discord.Permissions(administrator=True),
+        guild_only=True,
     )
 
     verification_welcome: app_commands.Group = app_commands.Group(
@@ -405,7 +406,6 @@ class Verify(commands.Cog):
                 _(itx, "Anonymization is **OFF**. Emails will appear in logs.")
             )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.SUBMOD)
     @verification.command(
         name="groupstrip",
@@ -471,7 +471,6 @@ class Verify(commands.Cog):
             ),
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification.command(name="grouprolestrip")
     async def verification_grouprolestrip(
@@ -539,7 +538,6 @@ class Verify(commands.Cog):
             f"stripped {removed_dc} members with group role strip on {role.name}.",
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_welcome.command(
         name="set",
@@ -578,7 +576,6 @@ class Verify(commands.Cog):
             ),
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_welcome.command(
         name="unset",
@@ -657,7 +654,6 @@ class Verify(commands.Cog):
             for page in table[1:]:
                 await itx.followup.send("```" + page + "```")
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification.command(
         name="update", description="Update the user's verification status."
@@ -694,7 +690,6 @@ class Verify(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_mapping.command(
         name="info", description="Get mapping information by username and domain."
@@ -751,7 +746,6 @@ class Verify(commands.Cog):
 
         await itx.response.send_message(embed=embed, ephemeral=hide_response)
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @commands.max_concurrency(1, per=commands.BucketType.default, wait=False)
     @verification_mapping.command(name="import", description="Import mapping data.")
@@ -830,7 +824,6 @@ class Verify(commands.Cog):
             _(itx, "Imported {count} mappings.").format(count=count)
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_mapping.command(
         name="remove", description="Remove verification mapping."
@@ -884,7 +877,6 @@ class Verify(commands.Cog):
         mapping[0].delete()
         await view.itx.response.send_message(_(itx, "Mapping successfuly removed."))
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_mapping.command(
         name="edit", description="Add or edit verification mapping."
@@ -925,7 +917,6 @@ class Verify(commands.Cog):
             ephemeral=True,
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(name="add", description="Creates verification rule.")
     @app_commands.describe(name="Name of the rule.", role="First role to add.")
@@ -948,7 +939,6 @@ class Verify(commands.Cog):
             _(itx, "Rule with name {name} added!").format(name=name)
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(name="remove", description="Delete verification rule")
     @app_commands.describe(name="Name of the rule.")
@@ -984,7 +974,6 @@ class Verify(commands.Cog):
             _(itx, "Rule {name} successfuly removed.").format(name=name)
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(name="list", description="List all rules.")
     async def verification_rule_list(self, itx: discord.Interaction):
@@ -1013,7 +1002,6 @@ class Verify(commands.Cog):
         for page in tables:
             await itx.followup.send("```" + page + "```")
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(name="info", description="Show information about rule.")
     async def verification_rule_info(self, itx: discord.Interaction, rule_name: str):
@@ -1054,7 +1042,6 @@ class Verify(commands.Cog):
         )
         await itx.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(
         name="addrole", description="Add Discord roles to verification rule."
@@ -1080,7 +1067,6 @@ class Verify(commands.Cog):
             )
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_rule.command(
         name="removerole", description="Remove Discord roles from verification rule."
@@ -1107,7 +1093,6 @@ class Verify(commands.Cog):
             )
         )
 
-    @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
     @verification_reverify.command(
         name="preview", description="Show changes that would be made by reverification."
