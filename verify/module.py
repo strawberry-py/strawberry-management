@@ -173,7 +173,7 @@ class Verify(commands.Cog):
     # Commands
 
     @app_commands.guild_only()
-    @check.acl2(check.ACLevel.EVERYONE)
+    @check.app_acl(check.ACLevel.EVERYONE)
     @app_commands.command(
         name="verify", description="Send verification code to the email."
     )
@@ -226,7 +226,7 @@ class Verify(commands.Cog):
         )
 
     @app_commands.guild_only()
-    @check.acl2(check.ACLevel.EVERYONE)
+    @check.app_acl(check.ACLevel.EVERYONE)
     @app_commands.command(
         name="submit", description="Submit verification code received by email."
     )
@@ -318,7 +318,7 @@ class Verify(commands.Cog):
             await (await itx.original_response()).delete()
 
     @app_commands.guild_only()
-    @check.acl2(check.ACLevel.EVERYONE)
+    @check.app_acl(check.ACLevel.EVERYONE)
     @app_commands.command(
         name="strip",
         description="Remove all roles and reset verification status to None.",
