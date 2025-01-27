@@ -98,7 +98,7 @@ class Whois(commands.Cog):
         await itx.response.send_message(embed=embed)
 
     @app_commands.guild_only()
-    @check.app_acl(check.ACLevel.MOD, is_app_command=True)
+    @check.app_acl(check.ACLevel.MOD)
     @app_commands.default_permissions(administrator=True)
     @app_commands.command(name="whois", description="See database info on member.")
     @app_commands.describe(user="Member to investigate.")
