@@ -52,7 +52,7 @@ class Sudo(
 
     # COMMANDS
 
-    @check.app_acl(check.ACLevel.SUBMOD)
+    @check.acl2(check.ACLevel.SUBMOD)
     @message.command(name="send", description="Send message to the channel as the bot.")
     @app_commands.describe(channel="Channel to receive the message.")
     async def sudo_message_send(
@@ -69,7 +69,7 @@ class Sudo(
         )
         await inter.response.send_modal(message_modal)
 
-    @check.app_acl(check.ACLevel.SUBMOD)
+    @check.acl2(check.ACLevel.SUBMOD)
     @message.command(name="edit", description="Edit bot's message.")
     @app_commands.describe(message_url="The URL of the message to edit.")
     async def sudo_message_edit(
@@ -103,7 +103,7 @@ class Sudo(
         )
         await inter.response.send_modal(message_modal)
 
-    @check.app_acl(check.ACLevel.SUBMOD)
+    @check.acl2(check.ACLevel.SUBMOD)
     @message.command(
         name="resend", description="Re-sends message as the bot into specified channel."
     )
@@ -134,7 +134,7 @@ class Sudo(
         )
         await inter.response.send_modal(message_modal)
 
-    @check.app_acl(check.ACLevel.SUBMOD)
+    @check.acl2(check.ACLevel.SUBMOD)
     @message.command(
         name="download", description="Exports message content as TXT file."
     )
