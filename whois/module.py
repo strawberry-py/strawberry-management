@@ -19,7 +19,7 @@ class Whois(commands.Cog):
         self.bot = bot
 
     @app_commands.guild_only()
-    @check.app_acl(check.ACLevel.MOD)
+    @check.acl2(check.ACLevel.MOD)
     @app_commands.command(name="roleinfo", description="Display role information.")
     @app_commands.describe(role="Role to investigate.")
     @app_commands.default_permissions(manage_roles=True)
@@ -48,7 +48,7 @@ class Whois(commands.Cog):
         await itx.response.send_message(embed=embed)
 
     @app_commands.guild_only()
-    @check.app_acl(check.ACLevel.MOD)
+    @check.acl2(check.ACLevel.MOD)
     @app_commands.command(
         name="channelinfo", description="Display channel information."
     )
@@ -98,7 +98,7 @@ class Whois(commands.Cog):
         await itx.response.send_message(embed=embed)
 
     @app_commands.guild_only()
-    @check.app_acl(check.ACLevel.MOD)
+    @check.acl2(check.ACLevel.MOD)
     @app_commands.command(name="whois", description="See database info on member.")
     @app_commands.describe(user="Member to investigate.")
     @app_commands.default_permissions(administrator=True)
@@ -120,7 +120,7 @@ class Whois(commands.Cog):
         )
 
     @app_commands.guild_only()
-    @check.app_acl(check.ACLevel.MOD)
+    @check.acl2(check.ACLevel.MOD)
     @app_commands.command(name="rwhois", description="See databse info on email")
     @app_commands.describe(address="Email to investigate")
     @app_commands.default_permissions(administrator=True)
