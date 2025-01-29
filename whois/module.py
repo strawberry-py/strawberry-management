@@ -20,9 +20,9 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @app_commands.default_permissions(administrator=True)
     @app_commands.command(name="roleinfo", description="Display role information.")
     @app_commands.describe(role="Role to investigate.")
+    @app_commands.default_permissions(manage_roles=True)
     async def roleinfo(self, itx: discord.Interaction, role: discord.Role):
         acl_mapping = ACLevelMappping.get(itx.guild.id, role.id)
 
@@ -49,11 +49,11 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @app_commands.default_permissions(administrator=True)
     @app_commands.command(
         name="channelinfo", description="Display channel information."
     )
     @app_commands.describe(channel="Channel to investigate.")
+    @app_commands.default_permissions(manage_channels=True)
     async def channelinfo(self, itx: discord.Interaction, channel: discord.TextChannel):
         if itx.user not in channel.members:
             await itx.response.send_message(
@@ -99,9 +99,9 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @app_commands.default_permissions(administrator=True)
     @app_commands.command(name="whois", description="See database info on member.")
     @app_commands.describe(user="Member to investigate.")
+    @app_commands.default_permissions(administrator=True)
     async def whois(self, itx: discord.Interaction, user: discord.User):
         db_members: List[VerifyMember]
         db_members = VerifyMember.get(guild_id=itx.guild.id, user_id=user.id)
@@ -121,9 +121,9 @@ class Whois(commands.Cog):
 
     @app_commands.guild_only()
     @check.acl2(check.ACLevel.MOD)
-    @app_commands.default_permissions(administrator=True)
     @app_commands.command(name="rwhois", description="See databse info on email")
     @app_commands.describe(address="Email to investigate")
+    @app_commands.default_permissions(administrator=True)
     async def rwhois(self, itx: discord.Interaction, address: str):
         db_members = VerifyMember.get(guild_id=itx.guild.id, address=address)
 
