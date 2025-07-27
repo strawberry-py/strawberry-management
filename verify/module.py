@@ -1,6 +1,4 @@
-import asyncio
 import contextlib
-import csv
 import os
 import random
 import string
@@ -11,6 +9,7 @@ from typing import List, Optional, Union
 
 import aiosmtplib
 import imap_tools
+import pandas as pd
 import unidecode
 
 import discord
@@ -767,61 +766,20 @@ class Verify(commands.Cog):
         await itx.response.send_message(
             _(itx, "Processing. Make a coffee, it may take a while.")
         )
+        async with itx.channel.typing():
+            df = await self._process_import_data(itx, attachment)
 
-        if wipe:
-            async with itx.channel.typing():
+            if wipe:
                 wiped = VerifyMapping.wipe(itx.guild.id)
                 await itx.followup.send(
                     _(itx, "Wiped {wiped} mappings.").format(wiped=wiped)
                 )
-
-        async with itx.channel.typing():
-            data_file = tempfile.NamedTemporaryFile()
-            await attachment.save(data_file.name)
-            file = open(data_file.name, "rt")
-
-            csv_reader = csv.reader(file, delimiter=";")
-
-            count = 0
-
-            for row in csv_reader:
-                count += 1
-                if len(row) != 3:
-                    await itx.followup.send(
-                        _(itx, "Row {row} has invalid number of columns!").format(
-                            row=count
-                        )
-                    )
-                    continue
-
-                username, domain, rule_name = row
-                rule = None
-
-                if len(rule_name):
-                    rule = VerifyRule.get(guild_id=itx.guild.id, name=rule_name)
-                    if not rule:
-                        await itx.followup.send(
-                            _(itx, "Row {row} has invalid rule name: {name}!").format(
-                                row=count, name=rule_name
-                            )
-                        )
-                        continue
-                    rule = rule[0]
-
-                VerifyMapping.add(
-                    guild_id=itx.guild.id,
-                    username=username,
-                    domain=domain,
-                    rule=rule,
-                )
-                # To keep the bot alive and responding
-                await asyncio.sleep(0)
-
-        file.close()
-        data_file.close()
+                VerifyMapping.bulk_insert(df)
+            else:
+                VerifyMapping.bulk_upsert(df)
 
         await itx.followup.send(
-            _(itx, "Imported {count} mappings.").format(count=count)
+            _(itx, "Imported {count} mappings.").format(count=len(df))
         )
 
     @check.acl2(check.ACLevel.MOD)
@@ -1147,6 +1105,49 @@ class Verify(commands.Cog):
             return
 
         await self._process_reverify(view.itx, preview=False)
+
+    async def _process_import_data(
+        self, itx: discord.Interaction, attachment: discord.Attachment
+    ) -> pd.DataFrame:
+        """
+        Helper function that process the import data into cleaned up Pandas DataFrame.
+        The function sends an itx followup when verification rule is not found or valid.
+
+        :param itx: Command context
+        :param attachment: CSV file to process
+
+        :returns: Pandas DataFrame [guild_id: int, username: str, domain: str, rule: VerifyRule]
+        """
+        rules = {rule.name: rule for rule in VerifyRule.get(guild_id=itx.guild.id)}
+
+        # Create PD dataframe out of the CSV
+        with tempfile.NamedTemporaryFile() as data_file:
+            await attachment.save(data_file.name)
+            df = pd.read_csv(
+                data_file, delimiter=";", names=["username", "domain", "rule_name"]
+            )
+
+        # Replace NaN with None
+        df: pd.DataFrame = df.map(lambda x: None if pd.isnull(x) else x)
+
+        # Drop rows with invalid rules
+        for rule_name in df["rule_name"].unique():
+            if not rule_name:
+                continue
+            if rule_name not in rules:
+                await itx.followup.send(
+                    _(itx, "Invalid rule name found: {name}!").format(name=rule_name)
+                )
+                df = df[df["rule_name"] != rule_name]
+
+        # Map rule_name to VerifyRule and drop rule_name
+        df["rule"] = df["rule_name"].apply(lambda x: rules.get(x, None))
+        df.drop(columns=["rule_name"], inplace=True)
+        # Add Guild ID
+        df["guild_id"] = itx.guild.id
+        # Replace None with empty string
+        df[["username", "domain"]] = df[["username", "domain"]].fillna("")
+        return df
 
     async def _process_reverify(self, itx: discord.Interaction, preview: bool = True):
         """Helper function to process the reverify.

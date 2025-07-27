@@ -412,12 +412,6 @@ msgstr
 msgid Wiped {wiped} mappings.
 msgstr
 
-msgid Row {row} has invalid number of columns!
-msgstr
-
-msgid Row {row} has invalid rule name: {name}!
-msgstr
-
 msgid Imported {count} mappings.
 msgstr
 
@@ -485,6 +479,9 @@ msgid Reverify preview aborted.
 msgstr
 
 msgid Do you really want to execute reverify? The operation is **irreversible**.This operation might take a while and the bot might hit rate limit!
+msgstr
+
+msgid Invalid rule name found: {name}!
 msgstr
 
 msgid Reverification starting...
