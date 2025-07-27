@@ -412,12 +412,6 @@ msgstr Zpracovávám. Uvař si kafe, bude to chvíli trvat.
 msgid Wiped {wiped} mappings.
 msgstr Smazáno {wiped} mapování.
 
-msgid Row {row} has invalid number of columns!
-msgstr Řádek {row} má špatný počet sloupců!
-
-msgid Row {row} has invalid rule name: {name}!
-msgstr Řádek {row} má špatný název pravidla: {name}!
-
 msgid Imported {count} mappings.
 msgstr Importováno {count} mapování.
 
@@ -486,6 +480,9 @@ msgstr Ukázka reverify zrušena.
 
 msgid Do you really want to execute reverify? The operation is **irreversible**.This operation might take a while and the bot might hit rate limit!
 msgstr Opravdu chcete spustit reverifikaci? Opreace je **nevratná**. Tato operace může chvíli trvat a bot může narazit na rate limit!
+
+msgid Invalid rule name found: {name}!
+msgstr Špatný název pravidla: {name}!
 
 msgid Reverification starting...
 msgstr Reverifikace začíná...

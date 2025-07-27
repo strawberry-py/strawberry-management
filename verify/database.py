@@ -4,6 +4,7 @@ import datetime
 import enum
 from typing import List, Optional
 
+import pandas as pd
 from sqlalchemy import (
     BigInteger,
     Column,
@@ -14,6 +15,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     func,
+    insert,
 )
 from sqlalchemy.orm import relationship
 
@@ -345,6 +347,67 @@ class VerifyMapping(database.base):
         mapping.rule = rule
 
         session.merge(mapping)
+        session.commit()
+
+    @staticmethod
+    def bulk_insert(mappings: pd.DataFrame):
+        """Bulk insert of mappings.
+
+        The guild data must be first wiped using VerifyMapping.wipe(guild_id).
+
+        :param mappings: Pandas DataFrame [guild_id: int, username: str, domain: str, rule: VerifyRule]
+
+        :raises sqlalchemy.exc.SQLAlchemyError: When the SQL insert fails
+        """
+        if set(mappings.columns) != {"guild_id", "username", "domain", "rule"}:
+            raise ValueError(
+                "Wrong columns in DataFrame passed for VerifyMapping bulk insert!"
+            )
+
+        # Convert VerifyRule to VerifyRule IDX
+        mappings["rule_id"] = mappings["rule"].apply(
+            lambda rule: rule.idx if rule is not None else None
+        )
+        mappings["rule_id"] = mappings["rule_id"].astype("Int64")
+        mappings.drop(columns=["rule"], inplace=True)
+
+        session.execute(insert(VerifyMapping), mappings.to_dict(orient="records"))
+        session.commit()
+
+    @staticmethod
+    def bulk_upsert(mappings: pd.DataFrame):
+        """Bulk upsert of mappings.
+
+        :param mappings: Pandas DataFrame [guild_id: int, username: str, domain: str, rule: VerifyRule]
+
+        :raises sqlalchemy.exc.SQLAlchemyError: When the SQL update fails
+        """
+        if set(mappings.columns) != {"guild_id", "username", "domain", "rule"}:
+            raise ValueError(
+                "Wrong columns in DataFrame passed for VerifyMapping bulk insert!"
+            )
+
+        for mapping_data in mappings.to_dict(orient="records"):
+            mapping = (
+                session.query(VerifyMapping)
+                .filter_by(
+                    guild_id=mapping_data["guild_id"],
+                    username=mapping_data["username"],
+                    domain=mapping_data["domain"],
+                )
+                .one_or_none()
+            )
+
+            if not mapping:
+                mapping = VerifyMapping(
+                    guild_id=mapping_data["guild_id"],
+                    username=mapping_data["username"],
+                    domain=mapping_data["domain"],
+                )
+
+            mapping.rule = mapping_data["rule"]
+
+            session.merge(mapping)
         session.commit()
 
     @staticmethod
