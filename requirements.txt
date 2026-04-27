@@ -1,5 +1,5 @@
 aiosmtplib
-emoji>=2.1.0
+emoji>=2.15.0
 imap_tools
 Pillow
 unidecode
